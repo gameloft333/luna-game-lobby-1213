@@ -1,0 +1,1 @@
+export const STORAGE_KEY = 'daily-checkin-state';
