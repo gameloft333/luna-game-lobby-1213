@@ -1,28 +1,49 @@
 #!/bin/bash
 
-# Make script exit on first error
+# Main deployment script
 set -e
 
-# Load environment variables
-source .env.production
+# Load utility scripts
+source scripts/utils.sh
+source scripts/docker.sh
 
-# Create required directories
-mkdir -p certbot/conf
-mkdir -p certbot/www
+# Script variables
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-# Pull latest changes
-git pull origin main
+main() {
+  echo "Starting deployment process..."
+  
+  # Check requirements
+  check_requirements
+  
+  # Load environment variables
+  load_env
+  
+  # Create required directories
+  create_directories
+  
+  # Check ports
+  check_port 9080
+  check_port 9443
+  
+  # Validate SSL configuration
+  validate_ssl
+  
+  # Clean up old deployment
+  cleanup
+  
+  # Start containers
+  start_containers
+  
+  # Initialize SSL certificates
+  init_ssl
+  
+  # Check container health
+  check_health
+  
+  echo "Deployment completed successfully!"
+}
 
-# Build and start containers
-docker-compose up -d --build
-
-# Wait for nginx to start
-sleep 10
-
-# Initialize SSL certificates
-docker-compose run --rm certbot
-
-# Reload nginx to apply SSL configuration
-docker-compose exec web nginx -s reload
-
-echo "Deployment completed successfully!"
+# Run main function
+main "$@"
