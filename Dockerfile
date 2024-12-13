@@ -25,7 +25,7 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose new ports
-EXPOSE 8080 8443
+EXPOSE 9080 9443
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]
