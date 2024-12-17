@@ -60,11 +60,44 @@ export const GAMES: Game[] = [
     id: 5,
     title: 'AI Companions',
     category: 'companions',
-    cover: 'https://images.unsplash.com/photo-1639762681485-074b7f938ba0',
+    // 首先添加一个获取随机图片的辅助函数
+    const getRandomImage = (images: string[]) => {
+      const randomIndex = Math.floor(Math.random() * images.length);
+      return images[randomIndex];
+    };
+    
+    // AI Companions的封面图片集合
+    const companionCovers = [
+      'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e',
+      'https://images.unsplash.com/photo-1621784563330-caee0b138a00',
+      'https://images.unsplash.com/photo-1517841905240-472988babdf9'
+    ];{
+        id: 5,
+        title: 'AI Companions',
+        category: 'companions',
+        cover: getRandomImage(companionCovers),  // 使用随机图片
+        players: 3456,
+        rating: 4.9,
+        description: 'Connect with AI companions and build meaningful relationships.',
+        externalLink: {
+          primary: 'https://love.saga4v.com/',
+          fallbacks: [
+            'https://love.ai666.click',
+          ]
+        },
+        order: 1,
+        showInHome: true,
+        wishes: getRandomWishes(),
+    }
     players: 3456,
     rating: 4.9,
     description: 'Connect with AI companions and build meaningful relationships.',
-    externalLink: 'https://love.ai666.click',
+    externalLink: {
+      primary: 'https://love.saga4v.com/',
+      fallbacks: [
+        'https://love.ai666.click',
+      ]
+    }
     order: 1,
     showInHome: true,
     wishes: getRandomWishes(),
