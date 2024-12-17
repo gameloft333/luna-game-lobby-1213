@@ -18,7 +18,16 @@ export default function Home() {
 
   const handleGameClick = (game: typeof GAMES[0]) => {
     if (game.externalLink && !game.isPreview) {
-      window.open(game.externalLink, '_blank');
+      // 优先使用主链接，如果失败则尝试备用链接
+      const links = [game.externalLink.primary, ...(game.externalLink.fallbacks || [])];
+      for (const link of links) {
+        try {
+          window.open(link, '_blank');
+          break;
+        } catch (error) {
+          console.warn(`Failed to open link: ${link}`, error);
+        }
+      }
     }
   };
 

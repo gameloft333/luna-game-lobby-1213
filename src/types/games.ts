@@ -1,3 +1,8 @@
+export interface ExternalLink {
+  primary: string;
+  fallbacks?: string[];
+}
+
 export interface Game {
   id: number;
   title: string;
@@ -6,7 +11,7 @@ export interface Game {
   players: number;
   rating: number;
   description: string;
-  externalLink?: string;
+  externalLink?: ExternalLink;
   order: number;
   showInHome: boolean;
   isPreview?: boolean;
