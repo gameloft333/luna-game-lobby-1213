@@ -58,11 +58,11 @@ check_requirements() {
 
 # Function to load environment variables
 load_env() {
-    if [ -f .env ]; then
-        source .env
+    if [ -f .env.production ]; then
+        source .env.production
         return 0
     else
-        echo ".env file not found"
+        echo ".env.production file not found"
         return 1
     fi
 }
