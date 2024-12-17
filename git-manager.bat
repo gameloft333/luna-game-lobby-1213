@@ -134,6 +134,8 @@ if !errorlevel! neq 0 (
 )
 
 echo %YELLOW%正在推送到远程...%NC%
+rem 禁用 SSL 验证
+git config --global http.sslVerify false
 git push origin "%branch%" 2>nul
 if !errorlevel! neq 0 (
     echo %YELLOW%推送失败，5秒后重试...%NC%
@@ -141,11 +143,15 @@ if !errorlevel! neq 0 (
     git push origin "%branch%" 2>nul
     if !errorlevel! neq 0 (
         echo %RED%推送失败%NC%
+        rem 重新启用 SSL 验证
+        git config --global http.sslVerify true
         timeout /t 2 >nul
         exit /b 1
     )
 )
 
+rem 重新启用 SSL 验证
+git config --global http.sslVerify true
 echo %GREEN%代码已成功提交到 %branch%%NC%
 timeout /t 2 >nul
 exit /b 0
