@@ -6,11 +6,20 @@ import { CarouselItem } from './types';
 interface CarouselProps {
   items: CarouselItem[];
   autoPlayInterval?: number;
+  freezePosition?: boolean; // Controls whether carousel stays fixed at top
+  className?: string; // Allow additional className for flexibility
 }
 
-export function Carousel({ items, autoPlayInterval = 5000 }: CarouselProps) {
+export function Carousel({ 
+  items, 
+  autoPlayInterval = 5000, 
+  freezePosition = true, // false by default, Carousel will scroll normally; true to fix at top
+  className = '' 
+}: CarouselProps) {
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = React.useState(true);
+  const [touchStart, setTouchStart] = React.useState(0);
+  const [touchEnd, setTouchEnd] = React.useState(0);
 
   const nextSlide = React.useCallback(() => {
     setCurrentIndex((current) => (current + 1) % items.length);
@@ -19,6 +28,23 @@ export function Carousel({ items, autoPlayInterval = 5000 }: CarouselProps) {
   const previousSlide = React.useCallback(() => {
     setCurrentIndex((current) => (current - 1 + items.length) % items.length);
   }, [items.length]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (touchStart - touchEnd > 75) {
+      nextSlide();
+    }
+    if (touchStart - touchEnd < -75) {
+      previousSlide();
+    }
+  };
 
   React.useEffect(() => {
     if (!isAutoPlaying) return;
@@ -29,41 +55,62 @@ export function Carousel({ items, autoPlayInterval = 5000 }: CarouselProps) {
 
   return (
     <div 
-      className="relative h-64 rounded-2xl overflow-hidden group"
+      className={cn(
+        "relative h-64 rounded-2xl overflow-hidden group", 
+        freezePosition && "sticky top-0 z-40", // Use sticky instead of fixed
+        className // Allow additional classes
+      )}
+      style={{ 
+        // Ensure the carousel doesn't overlap with content
+        ...(freezePosition && { 
+          width: '100%',
+          marginBottom: '1rem' // Add some margin to prevent overlapping
+        }) 
+      }}
       onMouseEnter={() => setIsAutoPlaying(false)}
       onMouseLeave={() => setIsAutoPlaying(true)}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
-      {/* Slides */}
-      {items.map((item, index) => (
-        <div
-          key={item.id}
-          className={cn(
-            'absolute inset-0 transition-transform duration-500 ease-in-out',
-            index === currentIndex ? 'translate-x-0' : 'translate-x-full'
-          )}
-          style={{
-            transform: `translateX(${100 * (index - currentIndex)}%)`,
-          }}
-        >
-          <img
-            src={item.image}
-            alt={item.title}
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/80 to-purple-600/80 flex items-center">
-            <div className="px-8">
-              <h2 className="text-3xl font-bold text-white mb-2">{item.title}</h2>
-              <p className="text-white/90 mb-4">{item.description}</p>
-              <button 
-                onClick={() => window.location.href = item.link}
-                className="bg-white text-blue-600 px-6 py-2 rounded-lg font-medium hover:bg-blue-50 transition-colors"
-              >
-                Learn More
-              </button>
+      {/* Slides with circular sliding effect */}
+      {items.map((item, index) => {
+        const offset = index - currentIndex;
+        const totalItems = items.length;
+        let transformX = 100 * offset;
+
+        // Circular sliding logic with seamless transition
+        if (offset > totalItems / 2) transformX -= 100 * totalItems;
+        if (offset < -totalItems / 2) transformX += 100 * totalItems;
+
+        return (
+          <div
+            key={item.id}
+            className="absolute inset-0 transition-transform duration-500 ease-in-out will-change-transform"
+            style={{
+              transform: `translateX(${transformX}%)`,
+            }}
+          >
+            <img
+              src={item.image}
+              alt={item.title}
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-600/80 to-purple-600/80 flex items-center">
+              <div className="px-8">
+                <h2 className="text-3xl font-bold text-white mb-2">{item.title}</h2>
+                <p className="text-white/90 mb-4">{item.description}</p>
+                <button 
+                  onClick={() => window.location.href = item.link}
+                  className="bg-white text-blue-600 px-6 py-2 rounded-lg font-medium hover:bg-blue-50 transition-colors"
+                >
+                  Learn More
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       {/* Navigation Buttons */}
       <button

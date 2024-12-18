@@ -1,14 +1,14 @@
 {
   "name": "Luna Game Lobby",
   "private": true,
-  "version": "1.5.22.25516",
+  "version": "1.6.25.17706",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "tsc && vite build",
     "clean": "rimraf dist",
     "lint": "eslint .",
-    "preview": "vite preview",
+    "preview": "vite preview --host",
     "start": "npm run clean && npm run build && npm run dev"
   },
   "dependencies": {
