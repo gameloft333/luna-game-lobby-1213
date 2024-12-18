@@ -18,7 +18,7 @@ git rev-parse --git-dir >nul 2>nul || (
 :menu
 cls
 echo ============================
-echo    Git Tool v1.0.0
+echo    Git Tool v1.0.7
 echo ============================
 echo.
 for /f "tokens=*" %%i in ('git rev-parse --abbrev-ref HEAD') do set "current_branch=%%i"
@@ -27,14 +27,18 @@ echo.
 echo [1] Commit and Push
 echo [2] Create Branch
 echo [3] Switch Branch
-echo [4] Exit
+echo [4] Pull from Remote
+echo [5] Force Push to Remote (Warning: will rewrite remote branch history)
+echo [6] Exit
 echo.
-set /p choice=Select (1-4): 
+set /p choice=Select (1-6): 
 
 if "%choice%"=="1" goto commit
 if "%choice%"=="2" goto create_branch
 if "%choice%"=="3" goto switch_branch
-if "%choice%"=="4" exit /b 0
+if "%choice%"=="4" goto pull
+if "%choice%"=="5" goto force_push
+if "%choice%"=="6" exit /b 0
 goto menu
 
 :commit
@@ -124,5 +128,42 @@ if %errorlevel% neq 0 (
 )
 
 echo Switched to branch %branch%
+timeout /t 2 >nul
+goto menu
+
+:pull
+echo Pulling from remote...
+git pull origin %current_branch%
+if %errorlevel% neq 0 (
+    echo Pull failed
+    timeout /t 2 >nul
+    goto menu
+)
+echo Pull successful
+timeout /t 2 >nul
+goto menu
+
+:force_push
+echo Force pushing to remote...
+rem Disable SSL verification
+git config --global http.sslVerify false
+
+git push --force-with-lease origin %current_branch%
+if %errorlevel% neq 0 (
+    echo Push failed, retrying in 5 seconds...
+    timeout /t 5 >nul
+    git push --force-with-lease origin %current_branch%
+    if %errorlevel% neq 0 (
+        echo Push failed
+        rem Re-enable SSL verification
+        git config --global http.sslVerify true
+        timeout /t 2 >nul
+        goto menu
+    )
+)
+
+rem Re-enable SSL verification
+git config --global http.sslVerify true
+echo Changes pushed successfully
 timeout /t 2 >nul
 goto menu
