@@ -20,7 +20,7 @@ export const GAMES: Game[] = [
   {
     id: 1,
     title: 'Crypto Quest',
-    category: 'all',
+    category: 'game', 
     cover: 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41',
     players: 1234,
     rating: 4.8,
@@ -33,7 +33,7 @@ export const GAMES: Game[] = [
   {
     id: 2,
     title: 'NFT Legends',
-    category: 'all',
+    category: 'game', 
     cover: 'https://images.unsplash.com/photo-1511512578047-dfb367046420',
     players: 856,
     rating: 4.6,
@@ -46,7 +46,7 @@ export const GAMES: Game[] = [
   {
     id: 3,
     title: 'Meta Racer',
-    category: 'all',
+    category: 'game', 
     cover: 'https://images.unsplash.com/photo-1552820728-8b83bb6b773f',
     players: 2341,
     rating: 4.7,
@@ -59,7 +59,7 @@ export const GAMES: Game[] = [
   {
     id: 4,
     title: 'AI Chess Master',
-    category: 'agi',
+    category: 'game', 
     cover: 'https://images.unsplash.com/photo-1528819622765-d6bcf132f793',
     players: 1567,
     rating: 4.9,
@@ -72,8 +72,8 @@ export const GAMES: Game[] = [
   {
     id: 5,
     title: 'AI Companions',
-    category: 'companions',
-    cover: getRandomImage(companionCovers),  // 使用随机图片
+    category: 'agi', 
+    cover: getRandomImage(companionCovers),  // use random image
     players: 3456,
     rating: 4.9,
     description: 'Connect with AI companions and build meaningful relationships.',

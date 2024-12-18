@@ -1,8 +1,8 @@
 export const carouselItems = [
   {
     id: 1,
-    title: 'Welcome to GameHub',
-    description: 'Discover the best Web3 games and connect with players worldwide',
+    title: 'Welcome to Luna Game Lobby',
+    description: 'Discover the best games and connect with players worldwide',
     image: 'https://images.unsplash.com/photo-1616588589676-62b3bd4ff6d2',
     link: '/games',
   },
