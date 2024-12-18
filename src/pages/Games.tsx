@@ -5,8 +5,9 @@ import { GAMES } from '../data/gamesData';
 import { GameCard } from '../components/games/GameCard';
 
 const categories = [
-  { id: 'all', label: 'Games', icon: Gamepad2 },
-  { id: 'agi', label: 'AGI APPS', icon: Bot },
+  { id: 'all', label: 'All', icon: Gamepad2 },
+  { id: 'game', label: 'Games', icon: Gamepad2 },
+  { id: 'agi', label: 'AGIs', icon: Bot },
   //{ id: 'companions', label: 'Companions', icon: Heart },
 ];
 
@@ -15,7 +16,12 @@ export default function Games() {
 
   const filteredGames = React.useMemo(() => 
     [...GAMES]
-      .filter(game => selectedCategory === 'all' || game.category === selectedCategory)
+      .filter(game => {
+        if (selectedCategory === 'all') return game.category === 'all' || game.category === 'agi' || game.category === 'game';
+        if (selectedCategory === 'agi') return game.category === 'all' || game.category === 'agi';
+        if (selectedCategory === 'game') return game.category === 'all' || game.category === 'game';
+        return false;
+      })
       .sort((a, b) => a.order - b.order),
     [selectedCategory]
   );
