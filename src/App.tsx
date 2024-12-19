@@ -9,6 +9,7 @@ import Community from './pages/Community';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import Auth from './pages/Auth';
+import { VerifyEmail } from './pages/VerifyEmail';
 
 function App() {
   return (
@@ -52,6 +53,7 @@ function App() {
             }
           />
         </Route>
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

@@ -78,9 +78,9 @@ export const GAMES: Game[] = [
     rating: 4.9,
     description: 'Connect with AI companions and build meaningful relationships.',
     externalLink: {
-      primary: 'https://love.saga4v.com/',
+      primary: 'http://love.saga4v.com/',
       fallbacks: [
-        'https://love.ai666.click',
+        'http://love.ai666.click',
       ]
     },
     order: 1,
