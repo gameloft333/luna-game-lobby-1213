@@ -10,7 +10,8 @@ import {
   ChevronRight,
   Shield,
   Bell,
-  HelpCircle
+  HelpCircle,
+  Globe
 } from 'lucide-react';
 import { useThemeStore } from '../store/theme';
 import { useSettingsStore } from '../store/settings';
@@ -18,12 +19,14 @@ import { UserProfileHeader } from '../components/profile/UserProfileHeader';
 import { useAuth } from '../hooks/useAuth';
 import { signOut } from '../lib/firebase/auth';
 import { cn } from '../lib/utils';
+import { useTranslation } from 'react-i18next';
 
 export default function Profile() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useThemeStore();
   const { testMode, toggleTestMode, canAccessTestMode } = useSettingsStore();
   const { user } = useAuth();
+  const { i18n } = useTranslation();
 
   const handleSignOut = async () => {
     const { error } = await signOut();
@@ -67,6 +70,16 @@ export default function Profile() {
       onClick: handleSignOut,
       danger: true,
       showDivider: false
+    },
+    {
+      icon: Globe,
+      label: 'Language',
+      onClick: () => {
+        const newLang = i18n.language === 'en' ? 'zh' : 'en';
+        i18n.changeLanguage(newLang);
+      },
+      value: i18n.language === 'en' ? 'English' : '中文',
+      showDivider: true
     }
   ];
 
