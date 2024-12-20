@@ -5,16 +5,6 @@ const STORAGE_KEY = 'task-rewards-state';
 
 export function useTaskRewards(testMode = false) {
   const [state, setState] = React.useState<TaskState>(() => {
-    if (testMode) {
-      return {
-        completedTasks: [],
-        lastClaimTime: {},
-        taskProgress: {
-          'daily-games': 0,
-        }
-      };
-    }
-    
     const saved = localStorage.getItem(STORAGE_KEY);
     return saved ? JSON.parse(saved) : {
       completedTasks: [],
@@ -25,19 +15,25 @@ export function useTaskRewards(testMode = false) {
     };
   });
 
-  const canClaimTask = React.useCallback((taskId: string, requiredProgress?: number) => {
+  const canClaimTask = React.useCallback((task: Task) => {
     if (testMode) return true;
-
-    if (state.completedTasks.includes(taskId)) return false;
-
-    if (taskId.startsWith('daily-')) {
-      const lastClaim = state.lastClaimTime[taskId];
-      if (lastClaim === new Date().toDateString()) return false;
+    
+    // 如果任务已完成，不能再次领取
+    if (state.completedTasks.includes(task.id)) {
+      return false;
     }
 
-    if (requiredProgress !== undefined) {
-      const currentProgress = state.taskProgress[taskId] || 0;
-      if (currentProgress < requiredProgress) return false;
+    // 检查进度要求
+    if (task.total && (state.taskProgress[task.id] || 0) < task.total) {
+      return false;
+    }
+
+    // 检查每日任务重置
+    if (task.daily) {
+      const lastClaim = state.lastClaimTime[task.id];
+      if (lastClaim === new Date().toDateString()) {
+        return false;
+      }
     }
 
     return true;
@@ -57,16 +53,16 @@ export function useTaskRewards(testMode = false) {
     });
   }, []);
 
-  const claimTask = React.useCallback((taskId: string, requiredProgress?: number) => {
-    if (!canClaimTask(taskId, requiredProgress) && !testMode) return false;
+  const claimTask = React.useCallback((task: Task) => {
+    if (!canClaimTask(task) && !testMode) return false;
 
     setState(prev => {
       const newState = {
         ...prev,
-        completedTasks: [...prev.completedTasks, taskId],
+        completedTasks: [...prev.completedTasks, task.id],
         lastClaimTime: {
           ...prev.lastClaimTime,
-          [taskId]: new Date().toDateString(),
+          [task.id]: new Date().toDateString(),
         },
       };
 
