@@ -1,5 +1,14 @@
 export default {
   auth: {
+    createAccount: {
+      title: 'Create your account',
+      subtitle: 'Sign in required to access this feature',
+      browsing: 'You can still browse games without signing in',
+      emailAddress: 'Email Address',
+      sendSignInLink: 'Send Sign-In Link',
+      alreadyHaveAccount: 'Already have an account?',
+      signIn: 'Sign in'
+    },
     emailLink: {
       title: 'Email Link Login',
       verifying: 'Verifying login link...',
