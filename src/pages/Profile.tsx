@@ -20,6 +20,7 @@ import { useAuth } from '../hooks/useAuth';
 import { signOut } from '../lib/firebase/auth';
 import { cn } from '../lib/utils';
 import { useTranslation } from 'react-i18next';
+import { useUserProfile } from '../hooks/useUserProfile';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -27,6 +28,7 @@ export default function Profile() {
   const { testMode, toggleTestMode, canAccessTestMode } = useSettingsStore();
   const { user } = useAuth();
   const { i18n } = useTranslation();
+  const { profile, loading } = useUserProfile();
 
   const handleSignOut = async () => {
     const { error } = await signOut();
@@ -111,7 +113,9 @@ export default function Profile() {
           <div className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Balance</p>
-              <p className="text-2xl font-bold dark:text-white">1,234 Tokens</p>
+              <p className="text-2xl font-bold dark:text-white">
+                {loading ? '...' : `${profile?.tokens || 0} Tokens`}
+              </p>
             </div>
             <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
               Add Funds

@@ -51,5 +51,16 @@ export default {
       alreadyHaveAccount: '已有账号？',
       signIn: '登录'
     }
+  },
+  home: {
+    featuredGames: '精选游戏',
+    dailyCheckin: '每日签到'
+  },
+  errors: {
+    loadDataFailed: '加载数据失败',
+    claimFailed: '领取奖励失败'
+  },
+  rewards: {
+    claimed: '奖励领取成功'
   }
 }; 

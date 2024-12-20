@@ -5,31 +5,42 @@ const STORAGE_KEY = 'task-rewards-state';
 
 export function useTaskRewards(testMode = false) {
   const [state, setState] = React.useState<TaskState>(() => {
+    if (testMode) {
+      return {
+        completedTasks: [],
+        lastClaimTime: {},
+        taskProgress: {
+          'daily-games': 0,
+        }
+      };
+    }
+    
     const saved = localStorage.getItem(STORAGE_KEY);
     return saved ? JSON.parse(saved) : {
       completedTasks: [],
       lastClaimTime: {},
       taskProgress: {
         'daily-games': 0,
-      },
+      }
     };
   });
 
   const canClaimTask = React.useCallback((taskId: string, requiredProgress?: number) => {
     if (testMode) return true;
 
-    const today = new Date().toDateString();
-    const lastClaim = state.lastClaimTime[taskId];
-    const hasntClaimedToday = lastClaim !== today;
-    const isNotCompleted = !state.completedTasks.includes(taskId);
-    
-    // Check if task has progress requirements
-    if (requiredProgress !== undefined) {
-      const currentProgress = state.taskProgress[taskId] || 0;
-      return isNotCompleted && hasntClaimedToday && currentProgress >= requiredProgress;
+    if (state.completedTasks.includes(taskId)) return false;
+
+    if (taskId.startsWith('daily-')) {
+      const lastClaim = state.lastClaimTime[taskId];
+      if (lastClaim === new Date().toDateString()) return false;
     }
 
-    return isNotCompleted && hasntClaimedToday;
+    if (requiredProgress !== undefined) {
+      const currentProgress = state.taskProgress[taskId] || 0;
+      if (currentProgress < requiredProgress) return false;
+    }
+
+    return true;
   }, [state.completedTasks, state.lastClaimTime, state.taskProgress, testMode]);
 
   const updateTaskProgress = React.useCallback((taskId: string, progress: number) => {
@@ -66,37 +77,25 @@ export function useTaskRewards(testMode = false) {
     return true;
   }, [canClaimTask, testMode]);
 
-  // Reset daily tasks at midnight
-  React.useEffect(() => {
-    const checkNewDay = () => {
-      const now = new Date();
-      const tomorrow = new Date(now);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(0, 0, 0, 0);
-      
-      const timeUntilMidnight = tomorrow.getTime() - now.getTime();
-      
-      setTimeout(() => {
-        setState(prev => ({
-          ...prev,
-          completedTasks: prev.completedTasks.filter(taskId => 
-            !taskId.startsWith('daily-')
-          ),
-          taskProgress: {
-            'daily-games': 0,
-          },
-        }));
-        checkNewDay();
-      }, timeUntilMidnight);
-    };
-
-    checkNewDay();
-  }, []);
+  const resetTasks = React.useCallback(() => {
+    if (!testMode) return;
+    
+    setState({
+      completedTasks: [],
+      lastClaimTime: {},
+      taskProgress: {
+        'daily-games': 0,
+      }
+    });
+    
+    localStorage.removeItem(STORAGE_KEY);
+  }, [testMode]);
 
   return {
     state,
     canClaimTask,
     claimTask,
     updateTaskProgress,
+    resetTasks
   };
 }

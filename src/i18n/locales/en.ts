@@ -50,5 +50,16 @@ export default {
         default: 'Failed to create account'
       }
     }
+  },
+  home: {
+    featuredGames: 'Featured Games',
+    dailyCheckin: 'Daily Check-in'
+  },
+  errors: {
+    loadDataFailed: 'Failed to load data',
+    claimFailed: 'Failed to claim reward'
+  },
+  rewards: {
+    claimed: 'Reward claimed successfully'
   }
 }; 

@@ -5,9 +5,13 @@ import { carouselItems } from '../data/carouselData';
 import { useSettingsStore } from '../store/settings';
 import { GAMES } from '../data/gamesData';
 import { GameCard } from '../components/games/GameCard';
+import { useTranslation } from 'react-i18next';
+import { useAuth } from '../hooks/useAuth';
 
 export default function Home() {
+  const { t } = useTranslation();
   const { testMode } = useSettingsStore();
+  const { user } = useAuth();
   
   const featuredGames = React.useMemo(() => 
     GAMES
@@ -32,14 +36,14 @@ export default function Home() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-16">
       {/* Hero Banner Carousel */}
       <Carousel items={carouselItems} autoPlayInterval={5000} />
 
       {/* Featured Games */}
       <section>
         <h2 className="text-2xl font-bold mb-4 dark:text-white">
-          Featured Games
+          {t('home.featuredGames')}
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {featuredGames.map((game) => (
@@ -53,7 +57,20 @@ export default function Home() {
       </section>
 
       {/* Daily Check-in */}
-      <DailyCheckin testMode={testMode} />
+      <section className="mt-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+        <h2 className="text-2xl font-bold mb-6 dark:text-white">
+          {t('home.dailyCheckin')}
+        </h2>
+        <div className="w-full">
+          {user ? (
+            <DailyCheckin testMode={testMode} />
+          ) : (
+            <div className="text-center text-gray-600 dark:text-gray-400">
+              {t('auth.createAccount.subtitle')}
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

@@ -10,10 +10,12 @@ import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import Auth from './pages/Auth';
 import { VerifyEmail } from './pages/VerifyEmail';
+import { Toaster } from 'react-hot-toast';
 
 function App() {
   return (
     <BrowserRouter>
+      <Toaster position="top-center" />
       <Routes>
         <Route path="/auth" element={<Auth />} />
         <Route path="/" element={<Layout />}>
