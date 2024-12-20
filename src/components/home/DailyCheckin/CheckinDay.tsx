@@ -29,33 +29,38 @@ export function CheckinDay({
       whileTap={isActive ? { scale: 0.95 } : {}}
       onClick={onClick}
       className={cn(
-        'relative aspect-square rounded-lg flex flex-col items-center justify-center gap-1 transition-all',
-        isCompleted && 'bg-green-100 dark:bg-green-900/20 cursor-default',
-        isActive && 'bg-blue-100 dark:bg-blue-900/20 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-900/30',
-        !isCompleted && !isActive && 'bg-gray-100 dark:bg-gray-700 cursor-not-allowed opacity-50'
+        'relative aspect-square rounded-xl flex flex-col items-center justify-center p-4',
+        'transition-all duration-300 border',
+        isCompleted && 'bg-green-500/10 border-green-500/20 dark:bg-green-900/20 dark:border-green-500/20',
+        isActive && 'bg-blue-500/10 border-blue-500/20 dark:bg-blue-900/20 dark:border-blue-500/20 cursor-pointer',
+        !isCompleted && !isActive && 'bg-gray-100 border-gray-200 dark:bg-gray-800/50 dark:border-gray-700/50 opacity-50 cursor-not-allowed'
       )}
     >
-      <Icon className={cn(
-        'h-6 w-6',
-        isCompleted && 'text-green-600 dark:text-green-400',
-        isActive && 'text-blue-600 dark:text-blue-400',
-        !isCompleted && !isActive && 'text-gray-400 dark:text-gray-500'
-      )} />
-      <span className="text-xs font-medium dark:text-white">Day {day}</span>
-      <span className="text-xs text-gray-600 dark:text-gray-400">
-        {reward.amount} {reward.name}
-      </span>
-      {isCompleted && (
-        <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-          <motion.span
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            className="text-white text-xs"
-          >
-            ✓
-          </motion.span>
+      <div className={cn(
+        'relative transition-transform duration-300',
+        (isCompleted || isActive) && 'scale-110'
+      )}>
+        <Icon className={cn(
+          'h-8 w-8',
+          'transition-colors duration-300',
+          isCompleted && 'text-green-500 dark:text-green-400',
+          isActive && 'text-blue-500 dark:text-blue-400',
+          !isCompleted && !isActive && 'text-gray-400 dark:text-gray-500'
+        )} />
+        {(isCompleted || isActive) && (
+          <div className={cn(
+            'absolute -inset-3 rounded-full -z-10 animate-pulse',
+            isCompleted ? 'bg-green-500/20' : 'bg-blue-500/20'
+          )} />
+        )}
+      </div>
+      
+      <div className="mt-2 text-center">
+        <div className="text-sm font-medium">Day {day}</div>
+        <div className="text-xs text-blue-600 dark:text-blue-400">
+          {reward.amount} {reward.name}
         </div>
-      )}
+      </div>
     </motion.button>
   );
 }

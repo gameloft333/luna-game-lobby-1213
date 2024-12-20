@@ -1,81 +1,85 @@
 import React from 'react';
-import { MessageSquare, Users, Send } from 'lucide-react';
-
-const discussions = [
-  {
-    id: 1,
-    title: 'Tips for Crypto Quest beginners',
-    author: 'CryptoMaster',
-    replies: 23,
-    participants: 15,
-    lastActive: '2h ago',
-  },
-  {
-    id: 2,
-    title: 'Weekly Tournament Strategies',
-    author: 'GamePro',
-    replies: 45,
-    participants: 28,
-    lastActive: '5m ago',
-  },
-  {
-    id: 3,
-    title: 'NFT Trading Guide',
-    author: 'NFTExpert',
-    replies: 67,
-    participants: 34,
-    lastActive: '1h ago',
-  },
-];
+import { DiscussionList } from '../components/social/DiscussionList/DiscussionList';
+import { DiscussionDetail } from '../components/social/DiscussionDetail/DiscussionDetail';
+import { FloatingActionButton } from '../components/social/FloatingActionButton';
+import { NewDiscussionForm } from '../components/social/NewDiscussionForm';
+import { InviteButton } from '../components/social/InviteButton';
+import { useDiscussions } from '../hooks/useDiscussions';
+import { ArrowLeft } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Community() {
+  const { discussions, loading } = useDiscussions();
+  const [selectedDiscussion, setSelectedDiscussion] = React.useState<number | null>(null);
+  const [showNewDiscussionForm, setShowNewDiscussionForm] = React.useState(false);
+
+  const handleBack = () => {
+    setSelectedDiscussion(null);
+  };
+
+  const handleNewDiscussion = () => {
+    setShowNewDiscussionForm(true);
+  };
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold dark:text-white">Community</h1>
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-          New Discussion
-        </button>
+    <div className="relative min-h-[calc(100vh-theme(spacing.20))] md:min-h-screen pb-24">
+      <div className="space-y-6">
+        <AnimatePresence mode="wait">
+          {selectedDiscussion ? (
+            <motion.div
+              key="detail"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <button
+                onClick={handleBack}
+                className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors mb-6"
+              >
+                <ArrowLeft className="w-5 h-5" />
+                <span>Back to Discussions</span>
+              </button>
+              <DiscussionDetail discussionId={selectedDiscussion} />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="list"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h1 className="text-2xl font-bold dark:text-white">Community</h1>
+                <FloatingActionButton 
+                  onClick={handleNewDiscussion}
+                  className="static"
+                />
+              </div>
+
+              <DiscussionList 
+                discussions={discussions} 
+                onDiscussionClick={(id) => setSelectedDiscussion(id)}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {!selectedDiscussion && (
+          <FloatingActionButton onClick={handleNewDiscussion} />
+        )}
+
+        {/* New Discussion Form */}
+        {showNewDiscussionForm && (
+          <NewDiscussionForm onClose={() => setShowNewDiscussionForm(false)} />
+        )}
       </div>
 
-      <div className="grid gap-4">
-        {discussions.map((discussion) => (
-          <div
-            key={discussion.id}
-            className="bg-white dark:bg-gray-800 rounded-lg p-4 hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="font-semibold text-lg mb-1 dark:text-white">
-                  {discussion.title}
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Started by {discussion.author}
-                </p>
-              </div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                {discussion.lastActive}
-              </span>
-            </div>
-            <div className="flex items-center gap-4 mt-4 text-sm text-gray-600 dark:text-gray-400">
-              <div className="flex items-center gap-1">
-                <MessageSquare className="h-4 w-4" />
-                <span>{discussion.replies} replies</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Users className="h-4 w-4" />
-                <span>{discussion.participants} participants</span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="fixed bottom-20 md:bottom-6 right-6">
-        <button className="bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700">
-          <Send className="h-6 w-6" />
-        </button>
-      </div>
+      {/* Sticky Invite Button */}
+      <InviteButton />
     </div>
   );
 }

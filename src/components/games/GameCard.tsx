@@ -1,8 +1,10 @@
 import React from 'react';
-import { Star, Users, Heart } from 'lucide-react';
+import { Star, Users, Heart, Play, Clock } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Game } from '../../types/games';
 import { formatNumber } from '../../lib/utils';
+import { GameBadge } from './GameBadge';
+import { GameStats } from './GameStats';
 
 interface GameCardProps {
   game: Game;
@@ -13,50 +15,61 @@ export function GameCard({ game, onClick }: GameCardProps) {
   return (
     <div
       className={cn(
-        "relative bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-md transition-all hover:scale-[1.02]",
-        game.externalLink && "cursor-pointer hover:shadow-lg"
+        "group relative bg-gray-900/95 backdrop-blur-md rounded-2xl overflow-hidden transition-all duration-300",
+        "hover:scale-[1.02] hover:shadow-xl hover:shadow-blue-500/10",
+        game.externalLink && "cursor-pointer"
       )}
       onClick={onClick}
     >
-      <div className="relative">
+      {/* Cover Image Container */}
+      <div className="relative aspect-[16/9] overflow-hidden">
         <img
           src={game.cover}
           alt={game.title}
-          className="w-full h-48 object-cover"
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
+        
+        {/* Preview Overlay */}
         {game.isPreview && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-            <div className="transform -rotate-12">
-              <span className="text-3xl font-bold text-white px-6 py-2 border-4 border-white rounded">
-                COMING SOON
-              </span>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+            <div className="relative">
+              <div className="absolute inset-0 bg-blue-500/20 rounded-lg blur-xl animate-pulse" />
+              <div className="relative px-6 py-2 border-2 border-white/80 rounded-lg rotate-[-6deg]">
+                <span className="text-xl font-bold text-white">COMING SOON</span>
+              </div>
             </div>
           </div>
         )}
+
+        {/* Play Button Overlay */}
+        {!game.isPreview && (
+          <div className="absolute inset-0 bg-gradient-to-t from-gray-900/90 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+            <button className="transform -translate-y-4 group-hover:translate-y-0 transition-all duration-300 bg-blue-500 hover:bg-blue-600 text-white rounded-full p-4">
+              <Play className="w-6 h-6 fill-current" />
+            </button>
+          </div>
+        )}
+
+        {/* Category Badge */}
+        <GameBadge category={game.category} className="absolute top-3 right-3" />
       </div>
-      <div className="p-4">
-        <h3 className="font-semibold text-lg mb-2 dark:text-white">
-          {game.title}
-        </h3>
-        <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
-          {game.description}
-        </p>
-        <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1">
-              <Users className="h-4 w-4" />
-              <span>{formatNumber(game.players)}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Heart className="h-4 w-4 text-pink-500" />
-              <span>{formatNumber(game.wishes)}</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-1">
-            <Star className="h-4 w-4 text-yellow-400" />
-            <span>{game.rating}</span>
-          </div>
+
+      {/* Content */}
+      <div className="p-4 space-y-3">
+        <div>
+          <h3 className="font-semibold text-lg text-white mb-1 line-clamp-1">
+            {game.title}
+          </h3>
+          <p className="text-sm text-gray-400 line-clamp-2">
+            {game.description}
+          </p>
         </div>
+
+        <GameStats
+          players={game.players}
+          rating={game.rating}
+          wishes={game.wishes}
+        />
       </div>
     </div>
   );
