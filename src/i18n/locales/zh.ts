@@ -39,7 +39,17 @@ export default {
         emailInUse: '该邮箱已被注册',
         weakPassword: '密码长度至少需要6个字符',
         default: '创建账号失败'
-      }
+      },
+      dynamicLinkNotActivated: '邮箱验证链接未正确配置，请联系管理员'
+    },
+    createAccount: {
+      title: '创建您的账号',
+      subtitle: '登录后即可访问此功能',
+      browsing: '您仍可以在不登录的情况下浏览游戏',
+      emailAddress: '邮箱地址',
+      sendSignInLink: '发送登录链接',
+      alreadyHaveAccount: '已有账号？',
+      signIn: '登录'
     }
   }
 }; 

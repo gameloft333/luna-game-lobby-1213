@@ -16,18 +16,17 @@ import i18next from 'i18next';
 
 // 添加邮件链接验证配置
 const actionCodeSettings = {
-  url: `https://${import.meta.env.VITE_DOMAIN}/verify-email`,
-  handleCodeInApp: true,
-  iOS: {
-    bundleId: 'com.lunagames.app'
-  },
-  android: {
-    packageName: 'com.lunagames.app',
-    installApp: true,
-    minimumVersion: '12'
-  },
-  dynamicLinkDomain: import.meta.env.VITE_DOMAIN
+  url: import.meta.env.DEV 
+    ? `${window.location.origin}/verify-email`
+    : `https://${import.meta.env.VITE_DOMAIN}/verify-email`,
+  handleCodeInApp: true
 };
+
+console.log('Action Code Settings:', {
+  url: actionCodeSettings.url,
+  dynamicLinkDomain: actionCodeSettings.dynamicLinkDomain,
+  environment: import.meta.env.MODE
+});
 
 // 统一的错误处理函数
 const handleAuthError = (error: any, errorMap: Record<string, string>): string => {
@@ -91,6 +90,11 @@ export const subscribeToAuthChanges = (callback: (user: User | null) => void) =>
 
 export const sendVerificationEmail = async (email: string): Promise<AuthResult> => {
   try {
+    console.log('Sending verification email with settings:', {
+      email,
+      actionCodeSettings: JSON.stringify(actionCodeSettings)
+    });
+
     await sendSignInLinkToEmail(auth, email, actionCodeSettings);
     // 保存邮箱到本地存储，用于后续验证
     window.localStorage.setItem('emailForSignIn', email);
@@ -100,7 +104,12 @@ export const sendVerificationEmail = async (email: string): Promise<AuthResult> 
       message: i18next.t('auth.emailLink.linkSent', { email })
     };
   } catch (error: any) {
-    console.error('发送验证邮件错误:', error);
+    console.error('发送验证邮件错误 (详细信息):', {
+      errorCode: error.code,
+      errorMessage: error.message,
+      fullError: error
+    });
+    
     let errorKey = 'auth.errors.default';
     
     switch (error.code) {
@@ -115,6 +124,16 @@ export const sendVerificationEmail = async (email: string): Promise<AuthResult> 
         break;
       case 'auth/too-many-requests':
         errorKey = 'auth.errors.tooManyRequests';
+        break;
+      case 'auth/dynamic-link-not-activated':
+      case 'auth/invalid-dynamic-link-domain':
+        errorKey = 'auth.errors.dynamicLinkNotConfigured';
+        console.warn(`
+          动态链接域配置可能存在问题。请检查：
+          1. Firebase控制台中的动态链接域设置
+          2. 环境变量中的VITE_FIREBASE_DYNAMIC_LINK_DOMAIN
+          3. 授权域名配置
+        `);
         break;
     }
     
