@@ -10,10 +10,56 @@ cd "$SCRIPT_DIR"
 # Function to check and stop existing containers
 stop_existing_containers() {
     echo "检查现有容器..."
-    if docker ps -q --filter "name=luna-game-lobby" | grep -q .; then
-        echo "停止现有容器..."
+    
+    # 从 docker-compose.yml 中动态获取容器名称
+    local container_names=$(docker-compose config --services | while read service; do
+        docker-compose ps -q $service 2>/dev/null
+    done)
+    
+    # 从 docker-compose.yml 中动态获取网络名称
+    local network_names=$(docker-compose config | grep -A 1 "networks:" | grep "name:" | awk '{print $2}')
+    
+    if [ -n "$container_names" ] || [ -n "$network_names" ]; then
+        echo "发现相关容器或网络，准备停止..."
+        
+        # 显示将要停止的容器信息
+        if [ -n "$container_names" ]; then
+            echo "将停止以下容器："
+            for container_id in $container_names; do
+                docker ps --filter "id=$container_id" --format "- {{.Names}} ({{.Status}})"
+            done
+        fi
+        
+        # 显示将要清理的网络信息
+        if [ -n "$network_names" ]; then
+            echo "将清理以下网络："
+            for network in $network_names; do
+                echo "- $network"
+            done
+        fi
+        
+        echo "执行停止操作..."
         docker-compose down --remove-orphans
-        sleep 2  # 等待资源释放
+        
+        # 等待资源完全释放
+        local max_wait=10
+        local waited=0
+        while [ $waited -lt $max_wait ]; do
+            if ! docker ps -q --filter "name=$(docker-compose ps -q)" 2>/dev/null | grep -q .; then
+                echo "容器已成功停止"
+                return 0
+            fi
+            echo -n "."
+            sleep 1
+            waited=$((waited + 1))
+        done
+        
+        if [ $waited -eq $max_wait ]; then
+            echo "警告: 部分容器可能未完全停止"
+            return 1
+        fi
+    else
+        echo "未发现运行中的相关容器或网络"
     fi
 }
 
