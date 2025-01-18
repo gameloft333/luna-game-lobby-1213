@@ -191,8 +191,26 @@ update_nginx_config() {
     echo "检查目录结构..."
     ls -la
     
-    # 首先确保目录存在
-    mkdir -p ./conf.d
+    # 创建必要的目录
+    echo "创建必要的目录结构..."
+    sudo mkdir -p /etc/nginx/ssl
+    sudo mkdir -p ./conf.d
+    
+    # 创建 SSL 配置文件
+    echo "创建 SSL 配置文件..."
+    cat << 'EOF' | sudo tee /etc/nginx/ssl/ssl.conf
+# SSL 配置
+ssl_protocols TLSv1.2 TLSv1.3;
+ssl_prefer_server_ciphers on;
+ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+ssl_session_timeout 1d;
+ssl_session_cache shared:SSL:50m;
+ssl_session_tickets off;
+ssl_stapling on;
+ssl_stapling_verify on;
+resolver 8.8.8.8 8.8.4.4 valid=300s;
+resolver_timeout 5s;
+EOF
     
     # 从 nginx.conf 模板创建 play.conf
     if [ ! -f "./conf.d/play.conf" ]; then
@@ -214,8 +232,6 @@ update_nginx_config() {
             return 1
         fi
         echo "已备份现有 Nginx 配置文件到 ${BACKUP_CONF}"
-    else
-        echo "原始 Nginx 配置文件不存在。"
     fi
 
     # 复制新的配置文件
