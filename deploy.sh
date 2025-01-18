@@ -230,7 +230,49 @@ update_nginx_config() {
         sudo mv "/etc/nginx/conf.d/chat.conf" "${BACKUP_DIR}/chat.conf.bak"
     fi
     
-    # 创建新的配置...（原有的配置创建逻辑）
+    # 创建新的配置
+    echo "创建新的 Nginx 配置..."
+    cat << EOF > ./conf.d/play.conf
+    server {
+        listen 9080;
+        listen [::]:9080;
+        server_name play.saga4v.com;
+        
+        location / {
+            proxy_pass http://localhost:5173;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade \$http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host \$host;
+            proxy_cache_bypass \$http_upgrade;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+        }
+    }
+
+    server {
+        listen 9443 ssl;
+        listen [::]:9443 ssl;
+        server_name play.saga4v.com;
+
+        ssl_certificate /etc/nginx/ssl/play.saga4v.com.crt;
+        ssl_certificate_key /etc/nginx/ssl/play.saga4v.com.key;
+        include /etc/nginx/ssl/ssl.conf;
+
+        location / {
+            proxy_pass http://localhost:5173;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade \$http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host \$host;
+            proxy_cache_bypass \$http_upgrade;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+        }
+    }
+    EOF
     
     # 验证配置
     if ! sudo nginx -t; then

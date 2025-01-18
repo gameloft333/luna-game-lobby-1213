@@ -2,16 +2,18 @@
 
 services:
   web:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: game-lobby-web
-    restart: unless-stopped
     ports:
-      - "9080:9080"
-      - "9443:9443"
-    volumes:
-      - ./config/nginx/ssl.conf:/etc/nginx/ssl/ssl.conf:ro
+      - "9080:80"
+      - "9443:443"
+    restart: unless-stopped
     networks:
       - app-network
+    volumes:
+      - ./config/nginx/ssl.conf:/etc/nginx/ssl/ssl.conf:ro
     environment:
       - DOMAIN=${DOMAIN:-localhost}
     healthcheck:
