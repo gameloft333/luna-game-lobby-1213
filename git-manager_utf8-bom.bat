@@ -1,40 +1,40 @@
-@echo off
-rem ���ô���ҳΪ UTF-8
+﻿@echo off
+rem 设置代码页为 UTF-8
 chcp 65001 >nul
-rem ���ÿ���̨����Ϊ Consolas �� ������
+rem 设置控制台字体为 Consolas 或 新宋体
 reg add "HKEY_CURRENT_USER\Console" /v "FaceName" /t REG_SZ /d "Consolas" /f >nul
-rem �����ӳٱ�����չ
+rem 启用延迟变量扩展
 setlocal EnableDelayedExpansion
 
-rem �汾��Ϣ
+rem 版本信息
 set VERSION=1.0.1
 
-rem ��ɫ����
+rem 颜色代码
 set RED=[91m
 set GREEN=[92m
 set YELLOW=[93m
 set NC=[0m
 
-rem �˵�ѡ��
-set "MENU_TITLE=Git �����������"
-set "MENU_CURRENT=��ǰ��֧"
-set "MENU_1=1) �ύ����ǰ��֧"
-set "MENU_2=2) �����·�֧"
-set "MENU_3=3) �л���֧"
-set "MENU_4=4) �ϲ�������֧"
-set "MENU_5=5) �˳�"
-set "MENU_CHOICE=��ѡ����� (1-5): "
+rem 菜单选项
+set "MENU_TITLE=Git 代码管理工具"
+set "MENU_CURRENT=当前分支"
+set "MENU_1=1) 提交到当前分支"
+set "MENU_2=2) 创建新分支"
+set "MENU_3=3) 切换分支"
+set "MENU_4=4) 合并到主分支"
+set "MENU_5=5) 退出"
+set "MENU_CHOICE=请选择操作 (1-5): "
 
-rem ���Git
+rem 检查Git
 where git >nul 2>nul || (
-    echo %RED%Gitδ��װ%NC%
+    echo %RED%Git未安装%NC%
     pause
     exit /b 1
 )
 
-rem ���ֿ�
+rem 检查仓库
 if not exist ".git" (
-    echo %RED%��ǰĿ¼����Git�ֿ�%NC%
+    echo %RED%当前目录不是Git仓库%NC%
     pause
     exit /b 1
 )
@@ -63,32 +63,32 @@ if %choice%==3 goto :switch_branch
 if %choice%==4 goto :merge_main
 if %choice%==5 exit /b 0
 
-echo %RED%��Ч��ѡ��%NC%
+echo %RED%无效的选择%NC%
 timeout /t 2 >nul
 goto :menu
 
 :do_commit
 set branch=%~1
-echo %YELLOW%���ڸ��·�֧ %branch%...%NC%
+echo %YELLOW%正在更新分支 %branch%...%NC%
 git pull origin "%branch%"
 
-rem ����Ƿ��б��
+rem 检查是否有变更
 git status -s > status.txt
 set "has_changes="
 for /f "tokens=*" %%a in (status.txt) do set "has_changes=1"
 del status.txt
 
 if not defined has_changes (
-    echo %YELLOW%û����Ҫ�ύ�ı��%NC%
+    echo %YELLOW%没有需要提交的变更%NC%
     timeout /t 2 >nul
     exit /b 0
 )
 
-rem ��ʾ��ǰ���
-echo %YELLOW%��ǰ�����%NC%
+rem 显示当前变更
+echo %YELLOW%当前变更：%NC%
 git status -s
 
-rem ����Ĭ���ύ��Ϣ
+rem 生成默认提交信息
 git status -s > status.txt
 set "DEFAULT_MSG="
 for /f "tokens=1,2*" %%a in (status.txt) do (
@@ -121,83 +121,83 @@ del status.txt
 git add .
 
 echo.
-echo %YELLOW%Ĭ���ύ��Ϣ: !DEFAULT_MSG!%NC%
-set /p COMMIT_MSG="�������ύ��Ϣ (ֱ�ӻس�ʹ��Ĭ����Ϣ): "
+echo %YELLOW%默认提交信息: !DEFAULT_MSG!%NC%
+set /p COMMIT_MSG="请输入提交信息 (直接回车使用默认信息): "
 if "!COMMIT_MSG!"=="" set "COMMIT_MSG=!DEFAULT_MSG!"
 
-echo %YELLOW%�����ύ...%NC%
+echo %YELLOW%正在提交...%NC%
 git commit -m "!COMMIT_MSG!" 2>nul
 if !errorlevel! neq 0 (
-    echo %RED%�ύʧ��%NC%
+    echo %RED%提交失败%NC%
     timeout /t 2 >nul
     exit /b 1
 )
 
-echo %YELLOW%�������͵�Զ��...%NC%
-rem ���� SSL ��֤
+echo %YELLOW%正在推送到远程...%NC%
+rem 禁用 SSL 验证
 git config --global http.sslVerify false
 git push origin "%branch%" 2>nul
 if !errorlevel! neq 0 (
-    echo %YELLOW%����ʧ�ܣ�5�������...%NC%
+    echo %YELLOW%推送失败，5秒后重试...%NC%
     timeout /t 5 >nul
     git push origin "%branch%" 2>nul
     if !errorlevel! neq 0 (
-        echo %RED%����ʧ��%NC%
-        rem �������� SSL ��֤
+        echo %RED%推送失败%NC%
+        rem 重新启用 SSL 验证
         git config --global http.sslVerify true
         timeout /t 2 >nul
         exit /b 1
     )
 )
 
-rem �������� SSL ��֤
+rem 重新启用 SSL 验证
 git config --global http.sslVerify true
-echo %GREEN%�����ѳɹ��ύ�� %branch%%NC%
+echo %GREEN%代码已成功提交到 %branch%%NC%
 timeout /t 2 >nul
 exit /b 0
 
 :create_branch
-set /p new_branch="�������·�֧����: "
+set /p new_branch="请输入新分支名称: "
 if "!new_branch!"=="" (
-    echo %RED%��֧���Ʋ���Ϊ��%NC%
+    echo %RED%分支名称不能为空%NC%
     timeout /t 2 >nul
     goto :menu
 )
-echo %YELLOW%���ڴ����·�֧...%NC%
+echo %YELLOW%正在创建新分支...%NC%
 git checkout -b "!new_branch!" 2>nul
 if !errorlevel! neq 0 (
-    echo %RED%������֧ʧ��%NC%
+    echo %RED%创建分支失败%NC%
     timeout /t 2 >nul
     goto :menu
 )
-echo %GREEN%��֧�����ɹ�%NC%
+echo %GREEN%分支创建成功%NC%
 call :do_commit "!new_branch!"
 goto :menu
 
 :switch_branch
-echo %YELLOW%��ǰ���÷�֧��%NC%
+echo %YELLOW%当前可用分支：%NC%
 git branch
 echo.
-set /p branch="������Ҫ�л��ķ�֧����: "
-echo %YELLOW%�����л���֧...%NC%
+set /p branch="请输入要切换的分支名称: "
+echo %YELLOW%正在切换分支...%NC%
 git checkout "%branch%" 2>nul
 if !errorlevel! neq 0 (
-    echo %RED%�л���֧ʧ��%NC%
+    echo %RED%切换分支失败%NC%
     timeout /t 2 >nul
 )
 goto :menu
 
 :merge_main
-echo %YELLOW%��ǰ���÷�֧��%NC%
+echo %YELLOW%当前可用分支：%NC%
 git branch
 echo.
-set /p branch="������Ҫ�ϲ�������֧�ķ�֧����: "
-echo %YELLOW%���ںϲ���֧...%NC%
+set /p branch="请输入要合并到主分支的分支名称: "
+echo %YELLOW%正在合并分支...%NC%
 git merge "%branch%" 2>nul
 if !errorlevel! neq 0 (
-    echo %RED%�ϲ���֧ʧ��%NC%
+    echo %RED%合并分支失败%NC%
     timeout /t 2 >nul
 )
 goto :menu
 
-rem ... �������뱣�ֲ��� ...
+rem ... 其他代码保持不变 ...
