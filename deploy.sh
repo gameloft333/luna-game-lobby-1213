@@ -253,7 +253,7 @@ server {
     server_name play.saga4v.com;
     
     location / {
-        proxy_pass http://127.0.0.1:5173;
+        proxy_pass http://game-lobby-web;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -262,6 +262,11 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+
+        # 添加错误日志
+        proxy_intercept_errors on;
+        error_log /var/log/nginx/app_error.log debug;
+        access_log /var/log/nginx/app_access.log;
     }
 }
 
@@ -275,7 +280,7 @@ server {
     include /etc/nginx/ssl/ssl.conf;
 
     location / {
-        proxy_pass https://127.0.0.1:5173;
+        proxy_pass http://game-lobby-web;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -284,6 +289,11 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+
+        # 添加错误日志
+        proxy_intercept_errors on;
+        error_log /var/log/nginx/app_error.log debug;
+        access_log /var/log/nginx/app_access.log;
     }
 }
 EOF
