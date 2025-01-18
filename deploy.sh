@@ -247,13 +247,18 @@ update_nginx_config() {
     # 创建新的配置
     echo "创建新的 Nginx 配置..."
     cat << 'EOF' > ./conf.d/play.conf
+# 定义上游服务器
+upstream game-lobby {
+    server game-lobby-web:80;
+}
+
 server {
     listen 80;
     listen [::]:80;
     server_name play.saga4v.com;
     
     location / {
-        proxy_pass http://game-lobby-web:80;
+        proxy_pass http://game-lobby;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -274,7 +279,7 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/play.saga4v.com/privkey.pem;
     
     location / {
-        proxy_pass http://game-lobby-web:80;
+        proxy_pass http://game-lobby;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -421,24 +426,27 @@ main() {
     # Stop existing containers
     stop_existing_containers
     
-    # 管理 Docker 网络
+    # 1. 首先管理 Docker 网络
     if ! manage_docker_network; then
         echo "Docker 网络管理失败"
         exit 1
     fi
     
-    # Check and free ports
-    if ! check_ports; then
-        echo "Failed to free required ports"
-        exit 1
-    fi
-    
-    # Clean up old deployment
-    cleanup
-    
+    # 2. 启动应用容器
     echo "Building and starting containers..."
     if ! docker-compose up --build -d; then
         echo "Failed to start containers"
+        exit 1
+    fi
+    
+    # 3. 确保 Nginx 已连接到网络
+    if ! docker network connect luna-game-lobby-1213_app-network nginx 2>/dev/null; then
+        echo "警告: 无法将 Nginx 连接到网络"
+    fi
+    
+    # 4. 最后更新 Nginx 配置
+    if ! update_nginx_config; then
+        echo "Nginx 配置更新失败"
         exit 1
     fi
     
@@ -462,12 +470,6 @@ main() {
         exit 1
     fi
 
-    # 更新 Nginx 配置
-    if ! update_nginx_config; then
-        echo "Nginx 配置更新失败"
-        exit 1
-    fi
-    
     # 验证部署
     if ! verify_deployment; then
         echo "部署验证失败，请检查配置"
