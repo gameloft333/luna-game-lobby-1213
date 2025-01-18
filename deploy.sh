@@ -248,12 +248,12 @@ update_nginx_config() {
     echo "创建新的 Nginx 配置..."
     cat << 'EOF' > ./conf.d/play.conf
 server {
-    listen 9080;
-    listen [::]:9080;
+    listen 80;
+    listen [::]:80;
     server_name play.saga4v.com;
     
     location / {
-        proxy_pass http://game-lobby-web;
+        proxy_pass http://game-lobby-web:80;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -262,25 +262,19 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-
-        # 添加错误日志
-        proxy_intercept_errors on;
-        error_log /var/log/nginx/app_error.log debug;
-        access_log /var/log/nginx/app_access.log;
     }
 }
 
 server {
-    listen 9443 ssl;
-    listen [::]:9443 ssl;
+    listen 443 ssl;
+    listen [::]:443 ssl;
     server_name play.saga4v.com;
 
-    ssl_certificate /etc/nginx/ssl/play.saga4v.com.crt;
-    ssl_certificate_key /etc/nginx/ssl/play.saga4v.com.key;
-    include /etc/nginx/ssl/ssl.conf;
-
+    ssl_certificate /etc/letsencrypt/live/play.saga4v.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/play.saga4v.com/privkey.pem;
+    
     location / {
-        proxy_pass http://game-lobby-web;
+        proxy_pass http://game-lobby-web:80;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -289,11 +283,6 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-
-        # 添加错误日志
-        proxy_intercept_errors on;
-        error_log /var/log/nginx/app_error.log debug;
-        access_log /var/log/nginx/app_access.log;
     }
 }
 EOF
@@ -365,8 +354,44 @@ manage_docker_network() {
         return 1
     fi
     
+    # 确保 Nginx 容器连接到网络
+    if docker ps -q -f name=nginx &>/dev/null; then
+        echo "将 Nginx 容器连接到网络..."
+        if ! docker network connect "$NETWORK_NAME" nginx 2>/dev/null; then
+            echo "警告: 无法将 Nginx 连接到网络"
+        fi
+    fi
+    
     echo "Docker 网络配置完成"
     return 0
+}
+
+verify_deployment() {
+    echo "验证部署..."
+    
+    # 检查 DNS 解析
+    echo "检查 DNS 解析..."
+    if ! host play.saga4v.com; then
+        echo "警告: DNS 解析可能未正确配置"
+    fi
+    
+    # 检查 AWS 安全组
+    echo "检查端口可访问性..."
+    if ! curl -s -o /dev/null -w "%{http_code}" http://localhost:80; then
+        echo "警告: HTTP 端口可能未正确配置"
+    fi
+    
+    # 检查容器网络
+    echo "检查容器网络..."
+    if ! docker network inspect luna-game-lobby-1213_app-network | grep -q "game-lobby-web"; then
+        echo "警告: 应用容器未正确加入网络"
+    fi
+    
+    # 检查 Nginx 配置
+    echo "检查 Nginx 配置..."
+    if ! curl -s -o /dev/null -w "%{http_code}" http://game-lobby-web:80; then
+        echo "警告: 无法访问应用容器"
+    fi
 }
 
 main() {
@@ -440,6 +465,12 @@ main() {
     # 更新 Nginx 配置
     if ! update_nginx_config; then
         echo "Nginx 配置更新失败"
+        exit 1
+    fi
+    
+    # 验证部署
+    if ! verify_deployment; then
+        echo "部署验证失败，请检查配置"
         exit 1
     fi
     
