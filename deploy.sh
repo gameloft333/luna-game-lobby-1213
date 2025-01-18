@@ -422,6 +422,26 @@ manage_docker_network() {
 verify_deployment() {
     echo "验证部署..."
     
+    # 检查容器状态
+    echo "检查容器状态..."
+    docker ps -a --filter "name=game-lobby-web" --format "{{.Status}}"
+    
+    # 检查容器日志
+    echo "检查容器日志..."
+    docker logs game-lobby-web
+    
+    # 检查容器内部网络
+    echo "检查容器内部网络..."
+    docker exec game-lobby-web netstat -tulpn | grep :80
+    
+    # 检查容器内部服务
+    echo "检查容器内部服务..."
+    docker exec game-lobby-web curl -v http://localhost:80
+    
+    # 检查网络连通性
+    echo "检查网络连通性..."
+    docker exec nginx curl -v http://game-lobby-web:80
+    
     # 检查 DNS 解析
     echo "检查 DNS 解析..."
     if ! host play.saga4v.com; then
