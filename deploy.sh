@@ -186,23 +186,10 @@ manage_ssl_certificates() {
 update_nginx_config() {
     echo "更新 Nginx 配置..."
     
-    # 检查并创建 Docker 网络
-    echo "检查 Docker 网络..."
-    local NETWORK_NAME="luna-game-lobby-1213_app-network"
-    if ! docker network ls | grep -q "$NETWORK_NAME"; then
-        echo "创建 Docker 网络: $NETWORK_NAME"
-        if ! docker network create "$NETWORK_NAME"; then
-            echo "错误: 创建 Docker 网络失败!"
-            return 1
-        fi
-    fi
-
     # 检查证书文件是否存在
     echo "检查证书文件..."
     if [ ! -d "/etc/letsencrypt/live/play.saga4v.com" ]; then
         echo "错误: SSL 证书目录不存在!"
-        echo "证书路径: /etc/letsencrypt/live/play.saga4v.com"
-        ls -la /etc/letsencrypt/live/ || true
         return 1
     fi
 
@@ -221,7 +208,18 @@ update_nginx_config() {
     
     sudo cp /etc/letsencrypt/live/play.saga4v.com/fullchain.pem /etc/nginx/ssl/play.saga4v.com.crt
     sudo cp /etc/letsencrypt/live/play.saga4v.com/privkey.pem /etc/nginx/ssl/play.saga4v.com.key
-    
+
+    # 创建 SSL 配置
+    echo "创建 SSL 配置..."
+    cat << EOF | sudo tee /etc/nginx/ssl/ssl.conf
+ssl_protocols TLSv1.2 TLSv1.3;
+ssl_prefer_server_ciphers on;
+ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384;
+ssl_session_timeout 1d;
+ssl_session_cache shared:SSL:50m;
+ssl_session_tickets off;
+EOF
+
     # 创建新的 nginx 配置
     echo "创建新的 Nginx 配置..."
     cat << EOF > ./conf.d/play.conf
@@ -230,9 +228,11 @@ server {
     listen [::]:9080;
     server_name play.saga4v.com;
     
-    # HTTP 重定向到 HTTPS
+    root /usr/share/nginx/html;
+    index index.html;
+
     location / {
-        return 301 https://\$host:\$server_port\$request_uri;
+        try_files \$uri \$uri/ /index.html;
     }
 }
 
@@ -245,33 +245,18 @@ server {
     ssl_certificate_key /etc/nginx/ssl/play.saga4v.com.key;
     include /etc/nginx/ssl/ssl.conf;
 
-    location / {
-        proxy_pass http://127.0.0.1:5173;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_cache_bypass \$http_upgrade;
-    }
+    root /usr/share/nginx/html;
+    index index.html;
 
-    # 添加 API 代理配置
-    location /api/webhook/stripe {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+    location / {
+        try_files \$uri \$uri/ /index.html;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
     }
 }
 EOF
 
     # 复制配置文件到 Nginx 配置目录
+    echo "复制配置文件到 Nginx 目录..."
     [ -f "/etc/nginx/conf.d/play.conf" ] && sudo cp "/etc/nginx/conf.d/play.conf" "$BACKUP_DIR/"
     sudo cp ./conf.d/play.conf /etc/nginx/conf.d/
 
@@ -282,17 +267,9 @@ EOF
         return 1
     fi
 
-    # 重启 Docker 容器前确保网络存在
+    # 重启 Docker 容器
     echo "重启 Docker 服务..."
-    if ! docker network ls | grep -q "$NETWORK_NAME"; then
-        echo "错误: Docker 网络不存在，重新创建..."
-        docker network create "$NETWORK_NAME"
-    fi
-    
-    # 停止并删除现有容器
     docker-compose down --remove-orphans
-    
-    # 启动新容器
     docker-compose up -d
 
     echo "Nginx 配置更新完成，备份文件保存在: $BACKUP_DIR"
