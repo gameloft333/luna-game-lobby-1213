@@ -186,32 +186,85 @@ manage_ssl_certificates() {
 update_nginx_config() {
     echo "更新 Nginx 配置..."
     
-    # 检查证书文件是否存在
-    echo "检查证书文件..."
-    if [ ! -d "/etc/letsencrypt/live/play.saga4v.com" ]; then
-        echo "错误: SSL 证书目录不存在!"
-        echo "证书路径: /etc/letsencrypt/live/play.saga4v.com"
-        ls -la /etc/letsencrypt/live/ || true
-        return 1
-    fi
-
+    # 添加调试信息
+    echo "当前工作目录: $(pwd)"
+    echo "检查目录结构..."
+    ls -la
+    
     # 创建必要的目录
     echo "创建必要的目录结构..."
     sudo mkdir -p /etc/nginx/ssl
+    sudo mkdir -p ./conf.d
     
-    # 复制证书文件（不使用软链接）
-    echo "复制 SSL 证书文件..."
-    sudo cp /etc/letsencrypt/live/play.saga4v.com/fullchain.pem /etc/nginx/ssl/play.saga4v.com.crt
-    sudo cp /etc/letsencrypt/live/play.saga4v.com/privkey.pem /etc/nginx/ssl/play.saga4v.com.key
+    # 创建 SSL 配置文件
+    echo "创建 SSL 配置文件..."
+    cat << 'EOF' | sudo tee /etc/nginx/ssl/ssl.conf
+# SSL 配置
+ssl_protocols TLSv1.2 TLSv1.3;
+ssl_prefer_server_ciphers on;
+ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+ssl_session_timeout 1d;
+ssl_session_cache shared:SSL:50m;
+ssl_session_tickets off;
+ssl_stapling on;
+ssl_stapling_verify on;
+resolver 8.8.8.8 8.8.4.4 valid=300s;
+resolver_timeout 5s;
+EOF
+
+    # 链接 Let's Encrypt 证书到 Nginx SSL 目录
+    echo "链接 SSL 证书文件..."
+    sudo ln -sf /etc/letsencrypt/live/play.saga4v.com/fullchain.pem /etc/nginx/ssl/fullchain.pem
+    sudo ln -sf /etc/letsencrypt/live/play.saga4v.com/privkey.pem /etc/nginx/ssl/privkey.pem
     
-    # 修改 nginx.conf 中的端口和证书路径
-    echo "修改 Nginx 配置..."
-    sed -i 's/9080/80/g' nginx.conf
-    sed -i 's/9443/443/g' nginx.conf
-    sed -i 's|ssl_certificate .*|ssl_certificate /etc/nginx/ssl/play.saga4v.com.crt;|g' nginx.conf
-    sed -i 's|ssl_certificate_key .*|ssl_certificate_key /etc/nginx/ssl/play.saga4v.com.key;|g' nginx.conf
+    # 从 nginx.conf 模板创建 play.conf
+    if [ ! -f "./conf.d/play.conf" ]; then
+        echo "创建新的 Nginx 配置文件..."
+        cp nginx.conf ./conf.d/play.conf
+        # 替换域名变量
+        sed -i "s/\${DOMAIN}/play.saga4v.com/g" ./conf.d/play.conf
+    fi
     
-    # 其余配置保持不变...
+    local LOCAL_CONF="./conf.d/play.conf"
+    local REMOTE_CONF="/etc/nginx/conf.d/play.conf"
+    local BACKUP_CONF="${REMOTE_CONF}.bak"
+
+    # 备份现有配置文件
+    if [ -f "$REMOTE_CONF" ]; then
+        if ! sudo cp "$REMOTE_CONF" "$BACKUP_CONF"; then
+            echo "错误: 备份现有 Nginx 配置文件失败!"
+            return 1
+        fi
+        echo "已备份现有 Nginx 配置文件到 ${BACKUP_CONF}"
+    fi
+
+    # 复制新的配置文件
+    if ! sudo cp "$LOCAL_CONF" "$REMOTE_CONF"; then
+        echo "错误: 复制新的 Nginx 配置文件失败!"
+        return 1
+    fi
+    echo "已将新的 Nginx 配置文件复制到 $REMOTE_CONF"
+
+    # 测试 Nginx 配置
+    if ! sudo nginx -t; then
+        echo "错误: Nginx 配置测试失败!"
+        return 1
+    fi
+    echo "Nginx 配置测试成功"
+
+    # 重启 Nginx
+    if ! sudo systemctl reload nginx; then
+        if ! sudo systemctl restart nginx; then
+            echo "错误: 重启 Nginx 失败!"
+            return 1
+        fi
+        echo "已重启 Nginx 服务 (使用 restart)"
+    else
+        echo "已重新加载 Nginx 服务 (使用 reload)"
+    fi
+
+    echo "Nginx 配置更新完成"
+    return 0
 }
 
 # 检查并释放 80 端口
