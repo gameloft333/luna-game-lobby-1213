@@ -198,20 +198,90 @@ update_nginx_config() {
     # 创建必要的目录
     echo "创建必要的目录结构..."
     sudo mkdir -p /etc/nginx/ssl
+    sudo mkdir -p ./conf.d
+    sudo mkdir -p ./backups/$(date +%Y%m%d_%H%M%S)
     
-    # 复制证书文件（不使用软链接）
+    # 备份现有证书文件
+    echo "检查并备份现有证书文件..."
+    local BACKUP_DIR="./backups/$(date +%Y%m%d_%H%M%S)"
+    if [ -f "/etc/nginx/ssl/play.saga4v.com.crt" ]; then
+        echo "备份现有 CRT 证书文件..."
+        sudo cp "/etc/nginx/ssl/play.saga4v.com.crt" "$BACKUP_DIR/"
+    fi
+    if [ -f "/etc/nginx/ssl/play.saga4v.com.key" ]; then
+        echo "备份现有 KEY 证书文件..."
+        sudo cp "/etc/nginx/ssl/play.saga4v.com.key" "$BACKUP_DIR/"
+    fi
+    
+    # 复制证书文件
     echo "复制 SSL 证书文件..."
     sudo cp /etc/letsencrypt/live/play.saga4v.com/fullchain.pem /etc/nginx/ssl/play.saga4v.com.crt
     sudo cp /etc/letsencrypt/live/play.saga4v.com/privkey.pem /etc/nginx/ssl/play.saga4v.com.key
     
-    # 修改 nginx.conf 中的端口和证书路径
-    echo "修改 Nginx 配置..."
-    sed -i 's/9080/80/g' nginx.conf
-    sed -i 's/9443/443/g' nginx.conf
-    sed -i 's|ssl_certificate .*|ssl_certificate /etc/nginx/ssl/play.saga4v.com.crt;|g' nginx.conf
-    sed -i 's|ssl_certificate_key .*|ssl_certificate_key /etc/nginx/ssl/play.saga4v.com.key;|g' nginx.conf
+    # 备份现有 Nginx 配置
+    echo "检查并备份现有 Nginx 配置..."
+    if [ -f "/etc/nginx/conf.d/play.conf" ]; then
+        echo "备份现有 Nginx 配置文件..."
+        sudo cp "/etc/nginx/conf.d/play.conf" "$BACKUP_DIR/"
+    fi
+    if [ -f "./conf.d/play.conf" ]; then
+        echo "备份本地 Nginx 配置文件..."
+        cp "./conf.d/play.conf" "$BACKUP_DIR/"
+    fi
     
-    # 其余配置保持不变...
+    # 创建新的 nginx 配置
+    echo "创建新的 Nginx 配置..."
+    cat << EOF > ./conf.d/play.conf
+server {
+    listen 80;
+    listen [::]:80;
+    server_name play.saga4v.com;
+    
+    # HTTP 重定向到 HTTPS
+    location / {
+        return 301 https://\$host\$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name play.saga4v.com;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    ssl_certificate /etc/nginx/ssl/play.saga4v.com.crt;
+    ssl_certificate_key /etc/nginx/ssl/play.saga4v.com.key;
+    include /etc/nginx/ssl/ssl.conf;
+
+    location / {
+        try_files \$uri \$uri/ /index.html;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+    }
+}
+EOF
+
+    # 复制配置文件到 Nginx 配置目录
+    echo "复制配置文件到 Nginx 目录..."
+    sudo cp ./conf.d/play.conf /etc/nginx/conf.d/
+
+    # 备份 docker-compose.yml
+    echo "备份 docker-compose.yml..."
+    cp docker-compose.yml "$BACKUP_DIR/"
+
+    # 修改 docker-compose.yml 中的端口映射
+    echo "更新 Docker Compose 配置..."
+    sed -i 's/9080:9080/80:80/g' docker-compose.yml
+    sed -i 's/9443:9443/443:443/g' docker-compose.yml
+
+    # 重启 Docker 容器
+    echo "重启 Docker 服务..."
+    docker-compose down
+    docker-compose up -d
+
+    echo "Nginx 配置更新完成，备份文件保存在: $BACKUP_DIR"
+    return 0
 }
 
 # 检查并释放 80 端口
