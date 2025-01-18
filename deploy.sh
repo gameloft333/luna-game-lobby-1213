@@ -360,6 +360,17 @@ manage_docker_network() {
         return 1
     fi
     
+    # 等待网络就绪
+    echo "等待网络就绪..."
+    for i in {1..30}; do
+        if docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
+            echo "网络已就绪"
+            break
+        fi
+        echo "等待网络就绪... $i/30"
+        sleep 1
+    done
+    
     echo "Docker 网络配置完成"
     return 0
 }
@@ -390,6 +401,28 @@ verify_deployment() {
     if ! curl -s -o /dev/null -w "%{http_code}" http://game-lobby-web:80; then
         echo "警告: 无法访问应用容器"
     fi
+}
+
+wait_for_container() {
+    local container_name="$1"
+    local max_attempts=30
+    local attempt=1
+    
+    echo "等待容器 $container_name 就绪..."
+    while [ $attempt -le $max_attempts ]; do
+        if docker inspect "$container_name" --format '{{.State.Running}}' 2>/dev/null | grep -q "true"; then
+            if docker exec "$container_name" nc -z localhost 80 >/dev/null 2>&1; then
+                echo "容器 $container_name 已就绪"
+                return 0
+            fi
+        fi
+        echo "等待容器就绪... $attempt/$max_attempts"
+        sleep 1
+        attempt=$((attempt + 1))
+    done
+    
+    echo "错误: 容器 $container_name 未能在规定时间内就绪"
+    return 1
 }
 
 main() {
@@ -425,14 +458,20 @@ main() {
         exit 1
     fi
     
-    # 2. 启动应用容器（让 docker-compose 创建网络）
+    # 2. 启动应用容器
     echo "Building and starting containers..."
     if ! docker-compose up --build -d; then
         echo "Failed to start containers"
         exit 1
     fi
     
-    # 3. 更新 Nginx 配置
+    # 3. 等待容器就绪
+    if ! wait_for_container "game-lobby-web"; then
+        echo "容器启动失败"
+        exit 1
+    fi
+    
+    # 4. 更新 Nginx 配置
     if ! update_nginx_config; then
         echo "Nginx 配置更新失败"
         exit 1
