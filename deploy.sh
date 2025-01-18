@@ -356,6 +356,21 @@ EOF
         echo "错误: 重启 Nginx 失败!"
         return 1
     fi
+
+    # 验证 upstream 解析
+    echo "验证 upstream 解析..."
+    docker exec nginx getent hosts game-lobby-web || {
+        echo "错误: 无法解析 game-lobby-web 主机名"
+        return 1
+    }
+
+    # 测试容器间网络连接
+    echo "测试容器间网络连接..."
+    docker exec nginx curl -sf http://game-lobby-web:80 || {
+        echo "错误: 无法连接到上游服务器"
+        return 1
+    }
+
     return 0
 }
 
@@ -415,6 +430,20 @@ manage_docker_network() {
         sleep 1
     done
     
+    # 添加这部分：确保容器连接到网络
+    echo "验证网络连接..."
+    docker network connect "$NETWORK_NAME" nginx 2>/dev/null || true
+    docker network connect "$NETWORK_NAME" game-lobby-web 2>/dev/null || true
+    
+    # 验证连接
+    echo "验证容器网络连接..."
+    if ! docker network inspect "$NETWORK_NAME" | grep -q "game-lobby-web"; then
+        echo "警告: game-lobby-web 未正确连接到网络"
+    fi
+    if ! docker network inspect "$NETWORK_NAME" | grep -q "nginx"; then
+        echo "警告: nginx 未正确连接到网络"
+    fi
+    
     echo "Docker 网络配置完成"
     return 0
 }
@@ -444,9 +473,10 @@ verify_deployment() {
     
     # 检查 DNS 解析
     echo "检查 DNS 解析..."
-    if ! host play.saga4v.com; then
-        echo "警告: DNS 解析可能未正确配置"
-    fi
+    docker exec nginx dig game-lobby-web || true
+
+    echo "检查网络连接..."
+    docker exec nginx ping -c 1 game-lobby-web || true
     
     # 检查 AWS 安全组
     echo "检查端口可访问性..."
