@@ -187,29 +187,26 @@ manage_ssl_certificates() {
 update_nginx_config() {
     echo "更新 Nginx 配置..."
     
-    # 检查证书文件是否存在
-    echo "检查证书文件..."
-    if [ ! -d "/etc/letsencrypt/live/play.saga4v.com" ]; then
-        echo "错误: SSL 证书目录不存在!"
-        return 1
+    # 添加调试信息
+    echo "当前工作目录: $(pwd)"
+    
+    # 创建备份目录
+    local BACKUP_TIME=$(date +%Y%m%d_%H%M%S)
+    local BACKUP_DIR="/etc/nginx/conf.d/backups/${BACKUP_TIME}"
+    echo "创建备份目录: ${BACKUP_DIR}"
+    sudo mkdir -p "${BACKUP_DIR}"
+    
+    # 备份现有的 play.conf（如果存在）
+    if [ -f "/etc/nginx/conf.d/play.conf" ]; then
+        echo "备份现有的 play.conf..."
+        sudo cp "/etc/nginx/conf.d/play.conf" "${BACKUP_DIR}/"
     fi
-
+    
     # 创建必要的目录
     echo "创建必要的目录结构..."
     sudo mkdir -p /etc/nginx/ssl
     sudo mkdir -p ./conf.d
-    sudo mkdir -p ./backups/$(date +%Y%m%d_%H%M%S)
     
-    local BACKUP_DIR="./backups/$(date +%Y%m%d_%H%M%S)"
-    
-    # 备份和复制证书文件
-    echo "处理证书文件..."
-    [ -f "/etc/nginx/ssl/play.saga4v.com.crt" ] && sudo cp "/etc/nginx/ssl/play.saga4v.com.crt" "$BACKUP_DIR/"
-    [ -f "/etc/nginx/ssl/play.saga4v.com.key" ] && sudo cp "/etc/nginx/ssl/play.saga4v.com.key" "$BACKUP_DIR/"
-    
-    sudo cp /etc/letsencrypt/live/play.saga4v.com/fullchain.pem /etc/nginx/ssl/play.saga4v.com.crt
-    sudo cp /etc/letsencrypt/live/play.saga4v.com/privkey.pem /etc/nginx/ssl/play.saga4v.com.key
-
     # 创建 SSL 配置
     echo "创建 SSL 配置..."
     cat << EOF | sudo tee /etc/nginx/ssl/ssl.conf
@@ -229,11 +226,15 @@ server {
     listen [::]:9080;
     server_name play.saga4v.com;
     
-    root /usr/share/nginx/html;
-    index index.html;
-
     location / {
-        try_files \$uri \$uri/ /index.html;
+        proxy_pass http://127.0.0.1:5173;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
     }
 }
 
@@ -246,34 +247,36 @@ server {
     ssl_certificate_key /etc/nginx/ssl/play.saga4v.com.key;
     include /etc/nginx/ssl/ssl.conf;
 
-    root /usr/share/nginx/html;
-    index index.html;
-
     location / {
-        try_files \$uri \$uri/ /index.html;
-        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        proxy_pass http://127.0.0.1:5173;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
     }
 }
 EOF
 
-    # 复制配置文件到 Nginx 配置目录
-    echo "复制配置文件到 Nginx 目录..."
-    [ -f "/etc/nginx/conf.d/play.conf" ] && sudo cp "/etc/nginx/conf.d/play.conf" "$BACKUP_DIR/"
+    # 只更新我们的配置文件
+    echo "更新 play.conf..."
     sudo cp ./conf.d/play.conf /etc/nginx/conf.d/
 
-    # 检查 Nginx 配置
-    echo "检查 Nginx 配置..."
+    # 验证配置
+    echo "验证 Nginx 配置..."
     if ! sudo nginx -t; then
         echo "错误: Nginx 配置测试失败!"
+        # 如果有备份，恢复备份
+        if [ -f "${BACKUP_DIR}/play.conf" ]; then
+            echo "恢复之前的配置..."
+            sudo cp "${BACKUP_DIR}/play.conf" /etc/nginx/conf.d/
+        fi
         return 1
     fi
 
-    # 重启 Docker 容器
-    echo "重启 Docker 服务..."
-    docker-compose down --remove-orphans
-    docker-compose up -d
-
-    echo "Nginx 配置更新完成，备份文件保存在: $BACKUP_DIR"
+    echo "Nginx 配置更新完成，备份保存在: ${BACKUP_DIR}"
     return 0
 }
 
