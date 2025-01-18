@@ -186,6 +186,17 @@ manage_ssl_certificates() {
 update_nginx_config() {
     echo "更新 Nginx 配置..."
     
+    # 检查并创建 Docker 网络
+    echo "检查 Docker 网络..."
+    local NETWORK_NAME="luna-game-lobby-1213_app-network"
+    if ! docker network ls | grep -q "$NETWORK_NAME"; then
+        echo "创建 Docker 网络: $NETWORK_NAME"
+        if ! docker network create "$NETWORK_NAME"; then
+            echo "错误: 创建 Docker 网络失败!"
+            return 1
+        fi
+    fi
+
     # 检查证书文件是否存在
     echo "检查证书文件..."
     if [ ! -d "/etc/letsencrypt/live/play.saga4v.com" ]; then
@@ -271,9 +282,17 @@ EOF
         return 1
     fi
 
-    # 重启 Docker 容器
+    # 重启 Docker 容器前确保网络存在
     echo "重启 Docker 服务..."
-    docker-compose down
+    if ! docker network ls | grep -q "$NETWORK_NAME"; then
+        echo "错误: Docker 网络不存在，重新创建..."
+        docker network create "$NETWORK_NAME"
+    fi
+    
+    # 停止并删除现有容器
+    docker-compose down --remove-orphans
+    
+    # 启动新容器
     docker-compose up -d
 
     echo "Nginx 配置更新完成，备份文件保存在: $BACKUP_DIR"
