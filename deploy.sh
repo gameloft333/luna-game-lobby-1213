@@ -304,6 +304,10 @@ EOF
     fi
 
     echo "Nginx 配置更新成功，备份保存在: ${BACKUP_DIR}"
+    if ! sudo systemctl restart nginx; then
+        echo "错误: 重启 Nginx 失败!"
+        return 1
+    fi
     return 0
 }
 
