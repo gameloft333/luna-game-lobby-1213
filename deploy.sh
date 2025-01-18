@@ -149,15 +149,32 @@ manage_ssl_certificates() {
     # 检查域名
     DOMAIN="play.saga4v.com"
 
+    # 在生成证书前检查并释放 80 端口
+    echo "检查并释放必要端口..."
+    if ! check_and_free_port 80; then
+        echo "错误: 无法释放 80 端口！"
+        return 1
+    fi
+
+    # 等待端口完全释放
+    echo "等待端口释放完成..."
+    sleep 5
+
     # 生成 SSL 证书
     echo "为 ${DOMAIN} 生成 SSL 证书..."
     if ! sudo certbot certonly --standalone -d "${DOMAIN}" --non-interactive --agree-tos --email admin@saga4v.com; then
         echo "错误: SSL 证书生成失败！"
+        # 确保服务恢复
+        docker-compose restart
         return 1
     fi
 
     echo "SSL 证书生成成功！"
     
+    # 重启 Docker 容器以恢复服务
+    echo "重启服务..."
+    docker-compose restart
+
     # 设置证书自动续期
     (sudo crontab -l 2>/dev/null; echo "0 0,12 * * * python -c 'import random; import time; time.sleep(random.random() * 3600)' && certbot renew --quiet && docker restart nginx") | sudo crontab -
     
