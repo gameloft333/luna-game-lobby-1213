@@ -185,6 +185,24 @@ manage_ssl_certificates() {
 # 更新 Nginx 配置
 update_nginx_config() {
     echo "更新 Nginx 配置..."
+    
+    # 添加调试信息
+    echo "当前工作目录: $(pwd)"
+    echo "检查目录结构..."
+    ls -la
+    
+    # 首先确保目录存在
+    mkdir -p ./conf.d
+    
+    # 从 nginx.conf 模板创建 play.conf
+    if [ ! -f "./conf.d/play.conf" ]; then
+        echo "创建新的 Nginx 配置文件..."
+        # 使用已有的 nginx.conf 作为模板
+        cp nginx.conf ./conf.d/play.conf
+        # 替换域名变量
+        sed -i "s/\${DOMAIN}/play.saga4v.com/g" ./conf.d/play.conf
+    fi
+    
     local LOCAL_CONF="./conf.d/play.conf"
     local REMOTE_CONF="/etc/nginx/conf.d/play.conf"
     local BACKUP_CONF="${REMOTE_CONF}.bak"
