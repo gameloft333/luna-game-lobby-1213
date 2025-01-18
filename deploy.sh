@@ -371,6 +371,25 @@ EOF
         return 1
     }
 
+    echo "调试: 检查 Docker 网络信息..."
+    docker network ls
+    docker network inspect luna-game-lobby-1213_app-network
+
+    echo "调试: 检查 Nginx 容器网络配置..."
+    docker exec nginx ip addr
+    docker exec nginx cat /etc/hosts
+
+    echo "调试: 检查应用容器网络配置..."
+    docker exec game-lobby-web ip addr
+    docker exec game-lobby-web cat /etc/hosts
+
+    echo "调试: 检查 Nginx 解析..."
+    docker exec nginx ping -c 1 game-lobby-web
+    docker exec nginx curl -v http://game-lobby-web:80
+
+    echo "调试: 检查应用服务状态..."
+    docker exec game-lobby-web netstat -tlpn
+
     return 0
 }
 
