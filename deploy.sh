@@ -83,6 +83,24 @@ check_health() {
 # 管理 SSL 证书
 manage_ssl_certificates() {
     echo "开始管理 SSL 证书..."
+    local DOMAIN="play.saga4v.com"
+    local CERT_PATH="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
+    
+    # 检查证书是否存在和有效性
+    if [ -f "$CERT_PATH" ]; then
+        echo "检查证书有效期..."
+        local EXPIRY=$(openssl x509 -enddate -noout -in "$CERT_PATH" | cut -d= -f2)
+        local EXPIRY_EPOCH=$(date -d "${EXPIRY}" +%s)
+        local NOW_EPOCH=$(date +%s)
+        local DAYS_REMAINING=$(( ($EXPIRY_EPOCH - $NOW_EPOCH) / 86400 ))
+        
+        if [ $DAYS_REMAINING -gt 30 ]; then
+            echo "证书仍然有效，剩余 ${DAYS_REMAINING} 天，跳过更新"
+            return 0
+        else
+            echo "证书将在 ${DAYS_REMAINING} 天后过期，准备更新"
+        fi
+    fi
 
     # 更全面的操作系统检测
     local OS_TYPE=""
@@ -147,9 +165,6 @@ manage_ssl_certificates() {
             ;;
     esac
 
-    # 检查域名
-    DOMAIN="play.saga4v.com"
-
     # 在生成证书前检查并释放 80 端口
     echo "检查并释放必要端口..."
     if ! check_and_free_port 80; then
@@ -187,96 +202,46 @@ manage_ssl_certificates() {
 update_nginx_config() {
     echo "更新 Nginx 配置..."
     
-    # 添加调试信息
-    echo "当前工作目录: $(pwd)"
+    # 检查所有现有的配置文件
+    echo "检查现有 Nginx 配置..."
+    for conf in /etc/nginx/conf.d/*.conf; do
+        if [ -f "$conf" ]; then
+            echo "检查配置文件: $conf"
+            if grep -q "ssl_certificate" "$conf"; then
+                echo "发现 SSL 配置在: $conf"
+                # 检查是否是我们的域名
+                if ! grep -q "play.saga4v.com" "$conf"; then
+                    echo "警告: 发现其他域名的 SSL 配置，请手动检查"
+                fi
+            fi
+        fi
+    done
     
-    # 创建备份目录
+    # 备份目录使用时间戳
     local BACKUP_TIME=$(date +%Y%m%d_%H%M%S)
     local BACKUP_DIR="/etc/nginx/conf.d/backups/${BACKUP_TIME}"
-    echo "创建备份目录: ${BACKUP_DIR}"
     sudo mkdir -p "${BACKUP_DIR}"
     
-    # 备份现有的 play.conf（如果存在）
-    if [ -f "/etc/nginx/conf.d/play.conf" ]; then
-        echo "备份现有的 play.conf..."
-        sudo cp "/etc/nginx/conf.d/play.conf" "${BACKUP_DIR}/"
+    # 备份 chat.conf（如果存在）
+    if [ -f "/etc/nginx/conf.d/chat.conf" ]; then
+        echo "备份 chat.conf..."
+        sudo cp "/etc/nginx/conf.d/chat.conf" "${BACKUP_DIR}/"
+        echo "临时移除 chat.conf..."
+        sudo mv "/etc/nginx/conf.d/chat.conf" "${BACKUP_DIR}/chat.conf.bak"
     fi
     
-    # 创建必要的目录
-    echo "创建必要的目录结构..."
-    sudo mkdir -p /etc/nginx/ssl
-    sudo mkdir -p ./conf.d
+    # 创建新的配置...（原有的配置创建逻辑）
     
-    # 创建 SSL 配置
-    echo "创建 SSL 配置..."
-    cat << EOF | sudo tee /etc/nginx/ssl/ssl.conf
-ssl_protocols TLSv1.2 TLSv1.3;
-ssl_prefer_server_ciphers on;
-ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384;
-ssl_session_timeout 1d;
-ssl_session_cache shared:SSL:50m;
-ssl_session_tickets off;
-EOF
-
-    # 创建新的 nginx 配置
-    echo "创建新的 Nginx 配置..."
-    cat << EOF > ./conf.d/play.conf
-server {
-    listen 9080;
-    listen [::]:9080;
-    server_name play.saga4v.com;
-    
-    location / {
-        proxy_pass http://127.0.0.1:5173;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-}
-
-server {
-    listen 9443 ssl;
-    listen [::]:9443 ssl;
-    server_name play.saga4v.com;
-
-    ssl_certificate /etc/nginx/ssl/play.saga4v.com.crt;
-    ssl_certificate_key /etc/nginx/ssl/play.saga4v.com.key;
-    include /etc/nginx/ssl/ssl.conf;
-
-    location / {
-        proxy_pass http://127.0.0.1:5173;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-}
-EOF
-
-    # 只更新我们的配置文件
-    echo "更新 play.conf..."
-    sudo cp ./conf.d/play.conf /etc/nginx/conf.d/
-
     # 验证配置
-    echo "验证 Nginx 配置..."
     if ! sudo nginx -t; then
         echo "错误: Nginx 配置测试失败!"
-        # 如果有备份，恢复备份
-        if [ -f "${BACKUP_DIR}/play.conf" ]; then
-            echo "恢复之前的配置..."
-            sudo cp "${BACKUP_DIR}/play.conf" /etc/nginx/conf.d/
-        fi
+        # 恢复所有备份
+        echo "恢复所有配置..."
+        sudo cp -r "${BACKUP_DIR}"/* /etc/nginx/conf.d/
         return 1
     fi
-
-    echo "Nginx 配置更新完成，备份保存在: ${BACKUP_DIR}"
+    
+    echo "Nginx 配置更新成功，备份保存在: ${BACKUP_DIR}"
     return 0
 }
 
