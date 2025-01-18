@@ -61,5 +61,19 @@ export default {
   },
   rewards: {
     claimed: 'Reward claimed successfully'
+  },
+  shop: {
+    title: 'Token Shop',
+    currentBalance: 'Current Balance: {{amount}} Tokens',
+    addFunds: 'Add Funds',
+    packages: {
+      bonus: '+{{amount}} Bonus',
+      tokens: '{{amount}} Tokens'
+    },
+    purchase: {
+      success: 'Purchase successful',
+      failed: 'Purchase failed',
+      processing: 'Processing payment...'
+    }
   }
 }; 

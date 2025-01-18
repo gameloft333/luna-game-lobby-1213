@@ -11,6 +11,7 @@ import Settings from './pages/Settings';
 import Auth from './pages/Auth';
 import { VerifyEmail } from './pages/VerifyEmail';
 import { Toaster } from 'react-hot-toast';
+import PaymentSuccess from './pages/PaymentSuccess';
 
 function App() {
   return (
@@ -56,6 +57,7 @@ function App() {
           />
         </Route>
         <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/payment/success" element={<PaymentSuccess />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

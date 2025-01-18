@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Wallet, 
@@ -21,14 +21,17 @@ import { signOut } from '../lib/firebase/auth';
 import { cn } from '../lib/utils';
 import { useTranslation } from 'react-i18next';
 import { useUserProfile } from '../hooks/useUserProfile';
+import { TokenShop } from '../components/shop/TokenShop';
 
 export default function Profile() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { theme, toggleTheme } = useThemeStore();
   const { testMode, toggleTestMode, canAccessTestMode } = useSettingsStore();
   const { user } = useAuth();
   const { i18n } = useTranslation();
   const { profile, loading } = useUserProfile();
+  const [isShopOpen, setIsShopOpen] = useState(false);
 
   const handleSignOut = async () => {
     const { error } = await signOut();
@@ -117,8 +120,11 @@ export default function Profile() {
                 {loading ? '...' : `${profile?.tokens || 0} Tokens`}
               </p>
             </div>
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-              Add Funds
+            <button 
+              onClick={() => setIsShopOpen(true)} 
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              {t('shop.addFunds')}
             </button>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -187,6 +193,8 @@ export default function Profile() {
           ))}
         </div>
       </div>
+
+      <TokenShop isOpen={isShopOpen} onClose={() => setIsShopOpen(false)} />
     </div>
   );
 }

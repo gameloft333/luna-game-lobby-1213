@@ -29,6 +29,9 @@ export function DailyCheckin({ testMode }: { testMode: boolean }) {
   useEffect(() => {
     if (user?.uid || testMode) {
       loadCheckinData();
+    } else {
+      // 未登录用户直接设置 loading 为 false
+      setLoading(false);
     }
   }, [user?.uid, testMode]);
 
@@ -66,11 +69,11 @@ export function DailyCheckin({ testMode }: { testMode: boolean }) {
   };
 
   const canClaimToday = (day: number) => {
-    // 如果是测试模式，直接返回 true
-    if (testMode) return true;
+    // 未登录用户不能签到
+    if (!user?.uid && !testMode) return false;
     
-    // 非测试模式下的正常逻辑
-    if (!user?.uid) return false;
+    // 其他逻辑保持不变
+    if (testMode) return true;
     
     const today = new Date().toLocaleDateString();
     const hasCheckedInToday = checkinData.lastCheckIn === today;
@@ -80,7 +83,11 @@ export function DailyCheckin({ testMode }: { testMode: boolean }) {
   };
 
   const handleClaim = async (day: number) => {
-    if (!canClaimToday(day)) return;
+    if (!user?.uid && !testMode) {
+      // 未登录用户点击时显示提示
+      toast.error(t('auth.createAccount.subtitle'));
+      return;
+    }
     
     try {
       const reward = CHECKIN_REWARDS[day - 1];

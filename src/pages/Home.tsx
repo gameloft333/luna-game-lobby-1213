@@ -62,13 +62,7 @@ export default function Home() {
           {t('home.dailyCheckin')}
         </h2>
         <div className="w-full">
-          {user ? (
-            <DailyCheckin testMode={testMode} />
-          ) : (
-            <div className="text-center text-gray-600 dark:text-gray-400">
-              {t('auth.createAccount.subtitle')}
-            </div>
-          )}
+          <DailyCheckin testMode={testMode} />
         </div>
       </section>
     </div>

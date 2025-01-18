@@ -62,5 +62,19 @@ export default {
   },
   rewards: {
     claimed: '奖励领取成功'
+  },
+  shop: {
+    title: '代币商店',
+    currentBalance: '当前余额：{{amount}} 代币',
+    addFunds: '充值',
+    packages: {
+      bonus: '+{{amount}} 赠送',
+      tokens: '{{amount}} 代币'
+    },
+    purchase: {
+      success: '购买成功',
+      failed: '购买失败',
+      processing: '正在处理支付...'
+    }
   }
 }; 

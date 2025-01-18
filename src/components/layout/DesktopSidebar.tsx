@@ -37,7 +37,7 @@ export function DesktopSidebar() {
     <aside className="fixed left-0 top-0 h-screen w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800">
       <div className="p-4">
         <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-          GameHub
+          Luna Game Lobby
         </h1>
       </div>
       <nav className="flex-1 p-4">
