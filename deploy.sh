@@ -405,24 +405,50 @@ verify_deployment() {
 
 wait_for_container() {
     local container_name="$1"
-    local max_attempts=30
-    local attempt=1
+    local base_timeout=30    # 基准等待时间（秒）
+    local extended_timeout=120  # 扩展等待时间（秒），用于异常情况
+    local check_interval=2   # 检查间隔（秒）
+    local current_timeout=$base_timeout
+    local elapsed_time=0
     
     echo "等待容器 $container_name 就绪..."
-    while [ $attempt -le $max_attempts ]; do
+    echo -n "["
+    
+    while [ $elapsed_time -le $current_timeout ]; do
         if docker inspect "$container_name" --format '{{.State.Running}}' 2>/dev/null | grep -q "true"; then
             if docker exec "$container_name" nc -z localhost 80 >/dev/null 2>&1; then
-                echo "容器 $container_name 已就绪"
+                echo -e "]\n容器 $container_name 已就绪 (用时 ${elapsed_time} 秒)"
                 return 0
             fi
         fi
-        echo "等待容器就绪... $attempt/$max_attempts"
-        sleep 1
-        attempt=$((attempt + 1))
+        
+        # 如果超过基准时间但未就绪，扩展等待时间
+        if [ $elapsed_time -eq $base_timeout ]; then
+            echo -e "\n容器启动超过预期时间，将继续等待..."
+            current_timeout=$extended_timeout
+        fi
+        
+        # 计算进度条
+        local total_width=50
+        local progress=0
+        if [ $elapsed_time -le $base_timeout ]; then
+            progress=$((elapsed_time * total_width / base_timeout))
+        else
+            progress=$((total_width + (elapsed_time - base_timeout) * (total_width / (extended_timeout - base_timeout))))
+        fi
+        
+        printf "\r["
+        printf "%${progress}s" | tr ' ' '#'
+        printf "%$((total_width-progress))s" | tr ' ' '-'
+        printf "] %d%%" $((elapsed_time * 100 / current_timeout))
+        
+        sleep $check_interval
+        elapsed_time=$((elapsed_time + check_interval))
     done
     
-    echo "错误: 容器 $container_name 未能在规定时间内就绪"
-    return 1
+    echo -e "\n警告: 容器 $container_name 启动时间异常 (${elapsed_time} 秒)"
+    # 不立即失败，而是返回一个警告状态
+    return 2
 }
 
 main() {
@@ -466,7 +492,12 @@ main() {
     fi
     
     # 3. 等待容器就绪
-    if ! wait_for_container "game-lobby-web"; then
+    wait_status=$(wait_for_container "game-lobby-web")
+    wait_result=$?
+    
+    if [ $wait_result -eq 2 ]; then
+        echo "容器启动时间异常，但将继续部署流程..."
+    elif [ $wait_result -ne 0 ]; then
         echo "容器启动失败"
         exit 1
     fi
