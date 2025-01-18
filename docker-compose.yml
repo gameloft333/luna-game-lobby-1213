@@ -24,4 +24,5 @@ services:
 
 networks:
   app-network:
-    driver: bridge
+    name: luna-game-lobby-1213_app-network
+    external: true

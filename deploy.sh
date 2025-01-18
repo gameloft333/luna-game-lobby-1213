@@ -353,21 +353,8 @@ manage_docker_network() {
         docker network rm "$NETWORK_NAME" || true
     fi
     
-    echo "创建新网络..."
-    if ! docker network create "$NETWORK_NAME"; then
-        echo "错误: 创建 Docker 网络失败!"
-        return 1
-    fi
-    
-    # 确保 Nginx 容器连接到网络
-    if docker ps -q -f name=nginx &>/dev/null; then
-        echo "将 Nginx 容器连接到网络..."
-        if ! docker network connect "$NETWORK_NAME" nginx 2>/dev/null; then
-            echo "警告: 无法将 Nginx 连接到网络"
-        fi
-    fi
-    
-    echo "Docker 网络配置完成"
+    # 让 docker-compose 创建网络，而不是手动创建
+    echo "网络将由 docker-compose 创建..."
     return 0
 }
 
@@ -426,25 +413,20 @@ main() {
     # Stop existing containers
     stop_existing_containers
     
-    # 1. 首先管理 Docker 网络
+    # 1. 清理现有网络
     if ! manage_docker_network; then
         echo "Docker 网络管理失败"
         exit 1
     fi
     
-    # 2. 启动应用容器
+    # 2. 启动应用容器（让 docker-compose 创建网络）
     echo "Building and starting containers..."
     if ! docker-compose up --build -d; then
         echo "Failed to start containers"
         exit 1
     fi
     
-    # 3. 确保 Nginx 已连接到网络
-    if ! docker network connect luna-game-lobby-1213_app-network nginx 2>/dev/null; then
-        echo "警告: 无法将 Nginx 连接到网络"
-    fi
-    
-    # 4. 最后更新 Nginx 配置
+    # 3. 更新 Nginx 配置
     if ! update_nginx_config; then
         echo "Nginx 配置更新失败"
         exit 1
