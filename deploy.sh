@@ -30,37 +30,35 @@ stop_existing_containers() {
             done
         fi
         
-        # 显示将要清理的网络信息
-        if [ -n "$network_names" ]; then
-            echo "将清理以下网络："
-            for network in $network_names; do
-                echo "- $network"
-            done
-        fi
-        
         echo "执行停止操作..."
         docker-compose down --remove-orphans
         
-        # 等待资源完全释放
-        local max_wait=10
-        local waited=0
-        while [ $waited -lt $max_wait ]; do
+        # 更智能的等待逻辑
+        local max_attempts=30
+        local attempt=1
+        local all_stopped=false
+        
+        echo -n "等待容器停止"
+        while [ $attempt -le $max_attempts ]; do
             if ! docker ps -q --filter "name=$(docker-compose ps -q)" 2>/dev/null | grep -q .; then
-                echo "容器已成功停止"
-                return 0
+                all_stopped=true
+                echo -e "\n所有容器已成功停止"
+                break
             fi
             echo -n "."
             sleep 1
-            waited=$((waited + 1))
+            attempt=$((attempt + 1))
         done
         
-        if [ $waited -eq $max_wait ]; then
-            echo "警告: 部分容器可能未完全停止"
-            return 1
+        if [ "$all_stopped" = false ]; then
+            echo -e "\n注意: 部分容器停止较慢，但将继续部署流程..."
         fi
     else
         echo "未发现运行中的相关容器或网络"
     fi
+    
+    # 总是返回成功，让部署继续进行
+    return 0
 }
 
 # Function to check and kill processes using specific ports
