@@ -253,7 +253,7 @@ server {
     server_name play.saga4v.com;
     
     location / {
-        proxy_pass http://localhost:5173;
+        proxy_pass http://game-lobby-web:80;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -275,7 +275,7 @@ server {
     include /etc/nginx/ssl/ssl.conf;
 
     location / {
-        proxy_pass http://localhost:5173;
+        proxy_pass http://game-lobby-web:80;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
