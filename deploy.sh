@@ -469,51 +469,64 @@ manage_docker_network() {
 
 verify_deployment() {
     echo "验证部署..."
+    local deployment_success=true
     
-    # 检查容器状态
-    echo "检查容器状态..."
-    docker ps -a --filter "name=game-lobby-web" --format "{{.Status}}"
+    # 1. 检查容器状态
+    echo "1. 检查容器状态..."
+    docker ps -a --filter "name=game-lobby-web" --format "{{.Status}}" || {
+        echo "错误: 容器状态检查失败"
+        deployment_success=false
+    }
     
-    # 检查容器日志
-    echo "检查容器日志..."
-    docker logs game-lobby-web
+    # 2. 检查 Nginx 配置
+    echo "2. 检查 Nginx 配置文件内容..."
+    docker exec nginx cat /etc/nginx/conf.d/play.conf || {
+        echo "错误: 无法读取 Nginx 配置"
+        deployment_success=false
+    }
     
-    # 检查容器内部网络
-    echo "检查容器内部网络..."
-    docker exec game-lobby-web netstat -tulpn | grep :80
+    # 3. 检查 Nginx 错误日志
+    echo "3. 检查 Nginx 错误日志..."
+    docker exec nginx tail -n 50 /var/log/nginx/error.log || {
+        echo "错误: 无法读取 Nginx 错误日志"
+        deployment_success=false
+    }
     
-    # 检查容器内部服务
-    echo "检查容器内部服务..."
-    docker exec game-lobby-web curl -v http://localhost:80
+    # 4. 检查应用容器端口
+    echo "4. 检查应用容器端口..."
+    docker exec game-lobby-web netstat -tulpn || {
+        echo "错误: 无法检查应用容器端口"
+        deployment_success=false
+    }
     
-    # 检查网络连通性
-    echo "检查网络连通性..."
-    docker exec nginx curl -v http://game-lobby-web:80
+    # 5. 检查网络连接
+    echo "5. 检查网络连接..."
+    docker network inspect luna-game-lobby-1213_app-network || {
+        echo "错误: 无法检查网络配置"
+        deployment_success=false
+    }
     
-    # 检查 DNS 解析
-    echo "检查 DNS 解析..."
-    docker exec nginx dig game-lobby-web || true
-
-    echo "检查网络连接..."
-    docker exec nginx ping -c 1 game-lobby-web || true
+    # 6. 测试内部网络连接
+    echo "6. 测试容器间网络连接..."
+    docker exec nginx curl -v http://game-lobby-web:80 || {
+        echo "错误: 容器间网络连接失败"
+        deployment_success=false
+    }
     
-    # 检查 AWS 安全组
-    echo "检查端口可访问性..."
-    if ! curl -s -o /dev/null -w "%{http_code}" http://localhost:80; then
-        echo "警告: HTTP 端口可能未正确配置"
+    # 7. 检查 DNS 解析
+    echo "7. 检查 DNS 解析..."
+    docker exec nginx getent hosts game-lobby-web || {
+        echo "错误: DNS 解析失败"
+        deployment_success=false
+    }
+    
+    if [ "$deployment_success" = false ]; then
+        echo "部署验证失败，请检查以上错误信息"
+        return 1
     fi
     
-    # 检查容器网络
-    echo "检查容器网络..."
-    if ! docker network inspect luna-game-lobby-1213_app-network | grep -q "game-lobby-web"; then
-        echo "警告: 应用容器未正确加入网络"
-    fi
-    
-    # 检查 Nginx 配置
-    echo "检查 Nginx 配置..."
-    if ! curl -s -o /dev/null -w "%{http_code}" http://game-lobby-web:80; then
-        echo "警告: 无法访问应用容器"
-    fi
+    echo "部署验证完成"
+    return 0
 }
 
 wait_for_container() {
