@@ -59,13 +59,29 @@ check_requirements() {
 
 # Function to load environment variables
 load_env() {
-    if [ -f .env.production ]; then
-        source .env.production
-        return 0
-    else
-        echo ".env.production file not found"
+    echo "加载环境变量..."
+    if [ ! -f .env.production ]; then
+        echo ".env.production 文件不存在"
         return 1
     fi
+
+    # 使用 grep 和 sed 处理环境变量
+    while IFS= read -r line; do
+        # 跳过空行和注释
+        [[ -z "$line" || "$line" =~ ^# ]] && continue
+        
+        # 跳过 JSON 格式的内容
+        [[ "$line" =~ [\{\}] ]] && continue
+        
+        # 只处理 KEY=VALUE 格式的行
+        if [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+            echo "导入环境变量: $line"
+            export "$line"
+        fi
+    done < .env.production
+
+    echo "环境变量加载完成"
+    return 0
 }
 
 # Function to initialize SSL
