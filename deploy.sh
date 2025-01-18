@@ -9,10 +9,11 @@ cd "$SCRIPT_DIR"
 
 # Function to check and stop existing containers
 stop_existing_containers() {
-    echo "Checking for existing containers..."
+    echo "检查现有容器..."
     if docker ps -q --filter "name=luna-game-lobby" | grep -q .; then
-        echo "Stopping existing containers..."
-        docker-compose down
+        echo "停止现有容器..."
+        docker-compose down --remove-orphans
+        sleep 2  # 等待资源释放
     fi
 }
 
@@ -294,6 +295,36 @@ check_and_free_port() {
     return 0
 }
 
+# 添加新的网络管理函数
+manage_docker_network() {
+    local NETWORK_NAME="luna-game-lobby-1213_app-network"
+    
+    echo "管理 Docker 网络..."
+    
+    # 检查网络是否存在
+    if docker network ls | grep -q "$NETWORK_NAME"; then
+        echo "发现已存在的网络: $NETWORK_NAME"
+        
+        # 检查网络是否有连接的容器
+        if docker network inspect "$NETWORK_NAME" | grep -q "Containers"; then
+            echo "网络上存在活动容器，正在断开连接..."
+            docker network disconnect -f "$NETWORK_NAME" $(docker network inspect "$NETWORK_NAME" -f '{{range .Containers}}{{.Name}} {{end}}') 2>/dev/null || true
+        fi
+        
+        echo "移除旧网络..."
+        docker network rm "$NETWORK_NAME" || true
+    fi
+    
+    echo "创建新网络..."
+    if ! docker network create "$NETWORK_NAME"; then
+        echo "错误: 创建 Docker 网络失败!"
+        return 1
+    fi
+    
+    echo "Docker 网络配置完成"
+    return 0
+}
+
 main() {
     echo "Starting deployment process..."
     
@@ -320,6 +351,12 @@ main() {
     
     # Stop existing containers
     stop_existing_containers
+    
+    # 管理 Docker 网络
+    if ! manage_docker_network; then
+        echo "Docker 网络管理失败"
+        exit 1
+    fi
     
     # Check and free ports
     if ! check_ports; then
