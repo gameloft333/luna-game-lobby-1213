@@ -212,6 +212,24 @@ update_nginx_config() {
     return 0
 }
 
+# 检查并释放 80 端口
+check_and_free_port() {
+    local port=$1
+    if lsof -i :"$port" > /dev/null; then
+        echo "端口 $port 已被占用，尝试释放..."
+        # 临时停止 nginx 服务
+        if systemctl is-active --quiet nginx; then
+            systemctl stop nginx
+        fi
+        # 临时停止相关 Docker 容器
+        docker ps -q --filter "publish=$port" | xargs -r docker stop
+        
+        # ... 证书申请完成后 ...
+        # Docker 会自动重启 nginx，恢复服务
+    fi
+    return 0
+}
+
 main() {
     echo "Starting deployment process..."
     
