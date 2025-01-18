@@ -353,8 +353,14 @@ manage_docker_network() {
         docker network rm "$NETWORK_NAME" || true
     fi
     
-    # 让 docker-compose 创建网络，而不是手动创建
-    echo "网络将由 docker-compose 创建..."
+    # 创建新网络
+    echo "创建新网络..."
+    if ! docker network create "$NETWORK_NAME"; then
+        echo "错误: 创建 Docker 网络失败!"
+        return 1
+    fi
+    
+    echo "Docker 网络配置完成"
     return 0
 }
 
