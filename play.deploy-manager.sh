@@ -277,29 +277,51 @@ wait_and_diagnose_frontend() {
     while [ $attempt -le $max_attempts ]; do
         log "检查服务状态... (${attempt}/${max_attempts})"
         
-        # 检查容器是否存在并运行
-        if ! docker ps | grep -q "luna-game-frontend.*Up"; then
-            error "容器未运行，检查启动日志..."
-            docker logs luna-game-frontend --tail 50
+        # 检查容器是否存在
+        if ! docker ps -a | grep -q "luna-game-frontend"; then
+            error "容器不存在"
             return 1
         fi
         
-        # 检查端口是否已经开放
-        if docker exec luna-game-frontend netstat -tlpn | grep -q ":5173"; then
-            log "端口 5173 已开放，检查服务响应..."
-            if curl -s "http://localhost:5173" >/dev/null 2>&1; then
-                success "前端服务已就绪"
-                return 0
-            fi
-        else
-            log "等待服务端口开放..."
-        fi
+        # 获取容器状态
+        local container_status=$(docker inspect -f '{{.State.Status}}' luna-game-frontend)
+        log "容器状态: $container_status"
+        
+        case $container_status in
+            "running")
+                # 检查服务是否可访问
+                if docker exec luna-game-frontend curl -s http://localhost:5173 >/dev/null 2>&1; then
+                    success "前端服务已就绪"
+                    return 0
+                else
+                    log "服务进程信息："
+                    docker exec luna-game-frontend ps aux
+                    log "服务端口信息："
+                    docker exec luna-game-frontend netstat -tlpn || true
+                    log "最新日志："
+                    docker logs --tail 10 luna-game-frontend
+                fi
+                ;;
+            "exited")
+                error "容器异常退出"
+                log "退出状态码：$(docker inspect -f '{{.State.ExitCode}}' luna-game-frontend)"
+                log "错误信息："
+                docker logs luna-game-frontend
+                return 1
+                ;;
+            *)
+                log "等待容器启动... (状态: $container_status)"
+                ;;
+        esac
         
         if [ $attempt -eq $max_attempts ]; then
-            error "服务启动超时，收集诊断信息..."
-            docker exec luna-game-frontend ps aux
-            docker exec luna-game-frontend netstat -tlpn
-            docker logs luna-game-frontend --tail 50
+            error "服务启动超时，最后诊断信息："
+            log "1. 容器状态："
+            docker inspect luna-game-frontend | grep -A 10 "State"
+            log "2. 容器日志："
+            docker logs luna-game-frontend
+            log "3. 容器网络："
+            docker inspect luna-game-frontend | grep -A 20 "NetworkSettings"
             return 1
         fi
         
