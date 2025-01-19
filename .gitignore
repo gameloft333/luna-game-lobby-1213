@@ -28,4 +28,4 @@ dist-ssr
 *-firebase-adminsdk-*.json
 
 # Environment files
-.env
+.env*
