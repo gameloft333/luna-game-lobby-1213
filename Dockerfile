@@ -19,34 +19,21 @@ ENV HOST=0.0.0.0
 # Build the application
 RUN npm run build
 
-# Production image
-FROM nginx:alpine
+# 使用 node 运行预览服务
+FROM node:20-alpine
 
-# Create required directories
-RUN mkdir -p /etc/nginx/ssl
+WORKDIR /app
 
-# Copy nginx configurations
-COPY config/nginx/ssl.conf /etc/nginx/ssl/ssl.conf
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# 安装基本工具
+RUN apk add --no-cache curl
 
-# Generate self-signed certificate for development
-RUN apk add --no-cache openssl && \
-    mkdir -p /etc/nginx/ssl && \
-    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-    -keyout /etc/nginx/ssl/privkey.pem \
-    -out /etc/nginx/ssl/fullchain.pem \
-    -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost" && \
-    chmod 644 /etc/nginx/ssl/privkey.pem /etc/nginx/ssl/fullchain.pem
-
-# Copy built assets from builder
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Copy node_modules for preview command
-COPY --from=builder /app/node_modules /app/node_modules
-COPY --from=builder /app/package.json /app/package.json
+# 只复制必要的文件
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json .
 
 # 暴露端口
 EXPOSE 5173
 
-# 使用单个启动命令
-CMD ["sh", "-c", "cd /app && export PATH=/app/node_modules/.bin:$PATH && npm run preview:prod"]
+# 使用 preview 命令启动服务
+CMD ["sh", "-c", "export PATH=/app/node_modules/.bin:$PATH && npm run preview:prod"]

@@ -242,7 +242,7 @@ wait_and_diagnose_frontend() {
     log "等待前端服务就绪..."
     local max_attempts=30
     local attempt=1
-    
+    if ! docker-compose -f docker-compose.prod.yml up -d; then
     while [ $attempt -le $max_attempts ]; do
         # 检查容器状态
         local container_status=$(docker-compose -f docker-compose.prod.yml ps frontend | grep -o "Up\|Exit")
@@ -261,22 +261,22 @@ wait_and_diagnose_frontend() {
             
             log "4. 检查网络连接..."
             docker network inspect app_network
-            
+            log "检测到配置文件变更，准备更新..."
             log "5. 检查容器详细信息..."
             docker inspect $(docker-compose -f docker-compose.prod.yml ps -q frontend)
-            
+            log "备份当前服务器配置..."
             log "6. 检查文件系统..."
             docker-compose -f docker-compose.prod.yml exec frontend ls -la /app
             docker-compose -f docker-compose.prod.yml exec frontend ls -la /app/dist
-            
+            log "更新 Nginx 配置..."
             log "7. 检查 Node 版本和 npm 配置..."
             docker-compose -f docker-compose.prod.yml exec frontend node -v
             docker-compose -f docker-compose.prod.yml exec frontend npm config list
-            
+            log "测试新的 Nginx 配置..."
             error "请检查以上诊断信息，特别注意构建日志中的错误信息"
             return 1
         fi
-        
+        exit 1
         if docker-compose -f docker-compose.prod.yml ps | grep -q "frontend.*Up"; then
             log "容器已启动，检查服务可用性..."
             if curl -s "http://localhost:5173" >/dev/null 2>&1; then
@@ -303,17 +303,6 @@ wait_and_diagnose_frontend() {
                     
                     error "服务无响应，请检查以上诊断信息"
                     return 1
-                fi
-            fi
-        fi
-        
-        log "等待前端服务启动... (${attempt}/${max_attempts})"
-        sleep 5
-        attempt=$((attempt + 1))
-    done
-    
-    error "前端服务启动失败，请检查以上诊断信息"
-    return 1
 }
 
 # 检查并更新 Nginx 配置
