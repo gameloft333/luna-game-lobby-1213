@@ -163,9 +163,66 @@ manage_ssl_certificates() {
     return 0
 }
 
+# 处理环境变量文件格式
+process_env_file() {
+    log "处理环境变量文件格式..."
+    local env_file=".env.production"
+    local env_backup="${env_file}.bak"
+
+    # 如果备份文件不存在，创建备份
+    if [ ! -f "$env_backup" ]; then
+        log "创建环境变量文件备份..."
+        cp "$env_file" "$env_backup"
+    fi
+
+    # 读取文件内容到变量中
+    local content=$(<"$env_file")
+    
+    # 检查是否需要处理 FIREBASE_PRIVATE_KEY
+    if [[ "$content" =~ FIREBASE_PRIVATE_KEY.*\\\" ]]; then
+        log "处理 Firebase 私钥格式..."
+        # 使用临时文件避免直接修改
+        local temp_file=$(mktemp)
+        
+        # 处理转义字符
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^FIREBASE_PRIVATE_KEY= ]]; then
+                # 移除转义符并使用单引号
+                line=$(echo "$line" | sed 's/\\"/"/g' | sed 's/^FIREBASE_PRIVATE_KEY="\(.*\)"$/FIREBASE_PRIVATE_KEY=\x27\1\x27/')
+            fi
+            echo "$line" >> "$temp_file"
+        done < "$env_file"
+        
+        # 替换原文件
+        mv "$temp_file" "$env_file"
+        success "环境变量文件格式处理完成"
+    else
+        log "环境变量文件格式正常，无需处理"
+    fi
+    
+    return 0
+}
+
 # 部署服务
 deploy_services() {
     log "开始部署服务..."
+    
+    # 处理环境变量文件格式
+    if ! process_env_file; then
+        error "环境变量文件处理失败"
+        return 1
+    fi
+    
+    # 导出环境变量
+    log "导出环境变量..."
+    while IFS='=' read -r key value; do
+        # 跳过空行和注释
+        [[ -z "$key" || "$key" =~ ^# ]] && continue
+        # 跳过包含 JSON 的行
+        [[ "$key" =~ FIREBASE_PRIVATE_KEY ]] && continue
+        # 导出其他环境变量
+        export "$key"="$value"
+    done < .env.production
     
     # 停止现有服务
     log "停止现有服务..."
