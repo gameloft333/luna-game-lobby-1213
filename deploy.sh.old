@@ -577,6 +577,52 @@ wait_for_container() {
     return 2
 }
 
+# 添加以下日志收集函数
+collect_debug_logs() {
+    local LOG_DIR="debug_logs"
+    local TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    
+    echo "收集调试日志..."
+    mkdir -p "$LOG_DIR"
+    
+    # 收集 Nginx 配置
+    echo "1. 收集 Nginx 配置..."
+    docker exec nginx nginx -T > "$LOG_DIR/nginx_config_$TIMESTAMP.log" 2>&1
+    
+    # 收集 Nginx 错误日志
+    echo "2. 收集 Nginx 错误日志..."
+    docker exec nginx cat /var/log/nginx/error.log > "$LOG_DIR/nginx_error_$TIMESTAMP.log"
+    
+    # 收集应用容器日志
+    echo "3. 收集应用容器日志..."
+    docker logs game-lobby-web > "$LOG_DIR/app_container_$TIMESTAMP.log" 2>&1
+    
+    # 收集网络信息
+    echo "4. 收集网络配置信息..."
+    {
+        echo "=== Docker 网络列表 ==="
+        docker network ls
+        echo -e "\n=== 网络详细信息 ==="
+        docker network inspect luna-game-lobby-1213_app-network
+        echo -e "\n=== 容器 IP 配置 ==="
+        docker exec nginx ip addr
+        docker exec game-lobby-web ip addr
+        echo -e "\n=== DNS 解析测试 ==="
+        docker exec nginx getent hosts game-lobby-web
+    } > "$LOG_DIR/network_info_$TIMESTAMP.log"
+    
+    # 收集端口监听信息
+    echo "5. 收集端口监听信息..."
+    {
+        echo "=== Nginx 容器端口 ==="
+        docker exec nginx netstat -tulpn
+        echo -e "\n=== 应用容器端口 ==="
+        docker exec game-lobby-web netstat -tulpn
+    } > "$LOG_DIR/ports_info_$TIMESTAMP.log"
+    
+    echo "调试日志已保存到 $LOG_DIR 目录"
+}
+
 main() {
     echo "Starting deployment process..."
     
@@ -656,9 +702,13 @@ main() {
 
     # 验证部署
     if ! verify_deployment; then
-        echo "部署验证失败，请检查配置"
+        echo "部署验证失败，收集调试信息..."
+        collect_debug_logs
         exit 1
     fi
+    
+    # 即使部署"成功"，也收集日志以便分析
+    collect_debug_logs
     
     echo "Deployment completed successfully!"
 }
