@@ -245,71 +245,51 @@ wait_and_diagnose_frontend() {
     
     while [ $attempt -le $max_attempts ]; do
         # 检查容器状态
-        local container_status=$(docker-compose -f docker-compose.prod.yml ps frontend | grep -o "Up\|Exit")
-        
-        if [ "$container_status" = "Exit" ]; then
-            error "前端容器异常退出，诊断信息："
-            
-            log "1. 容器构建日志..."
-            docker-compose -f docker-compose.prod.yml logs --no-color frontend
-            
-            log "2. 检查构建过程..."
-            docker-compose -f docker-compose.prod.yml logs frontend | grep -i "error\|fail\|exception"
-            
-            log "3. 检查环境变量..."
-            docker-compose -f docker-compose.prod.yml config
-            
-            log "4. 检查网络连接..."
-            docker network inspect app_network
-            
-            log "5. 检查容器详细信息..."
-            docker inspect $(docker-compose -f docker-compose.prod.yml ps -q frontend)
-            
-            log "6. 检查文件系统..."
-            docker-compose -f docker-compose.prod.yml exec frontend ls -la /app
-            docker-compose -f docker-compose.prod.yml exec frontend ls -la /app/dist
-            
-            log "7. 检查 Node 版本和 npm 配置..."
-            docker-compose -f docker-compose.prod.yml exec frontend node -v
-            docker-compose -f docker-compose.prod.yml exec frontend npm config list
-            
-            error "请检查以上诊断信息，特别注意构建日志中的错误信息"
-            return 1
-        fi
-        
-        if docker-compose -f docker-compose.prod.yml ps | grep -q "frontend.*Up"; then
-            log "容器已启动，检查服务可用性..."
-            if curl -s "http://localhost:5173" >/dev/null 2>&1; then
-                success "前端服务已就绪"
-                return 0
-            else
-                if [ $attempt -eq $max_attempts ]; then
-                    error "服务启动但无法访问，诊断信息："
-                    
-                    log "1. 检查进程..."
-                    docker-compose -f docker-compose.prod.yml exec frontend ps aux
-                    
-                    log "2. 检查端口..."
-                    docker-compose -f docker-compose.prod.yml exec frontend netstat -tlpn
-                    
-                    log "3. 检查日志..."
-                    docker-compose -f docker-compose.prod.yml logs --tail=200 frontend
-                    
-                    log "4. 检查 npm 进程..."
-                    docker-compose -f docker-compose.prod.yml exec frontend ps aux | grep npm
-                    
-                    log "5. 检查服务配置..."
-                    docker-compose -f docker-compose.prod.yml exec frontend cat package.json
-                    
-                    error "服务无响应，请检查以上诊断信息"
-                    return 1
-                fi
+        if ! docker-compose -f docker-compose.prod.yml ps | grep -q "frontend.*Up"; then
+            if [ $attempt -eq $max_attempts ]; then
+                error "前端容器未能正常启动"
+                return 1
             fi
+            log "等待容器启动... (${attempt}/${max_attempts})"
+            sleep 5
+            attempt=$((attempt + 1))
+            continue
         fi
+
+        # 检查服务可用性
+        if curl -s "http://localhost:5173" >/dev/null 2>&1; then
+            success "前端服务已就绪"
+            return 0
+        fi
+
+        # 如果服务未响应，但还有重试次数，继续等待
+        if [ $attempt -lt $max_attempts ]; then
+            log "等待服务响应... (${attempt}/${max_attempts})"
+            sleep 5
+            attempt=$((attempt + 1))
+            continue
+        fi
+
+        # 如果达到最大重试次数，收集诊断信息
+        error "服务启动但无法访问，诊断信息："
         
-        log "等待前端服务启动... (${attempt}/${max_attempts})"
-        sleep 5
-        attempt=$((attempt + 1))
+        log "1. 检查进程..."
+        docker-compose -f docker-compose.prod.yml exec frontend ps aux
+        
+        log "2. 检查端口..."
+        docker-compose -f docker-compose.prod.yml exec frontend netstat -tlpn
+        
+        log "3. 检查日志..."
+        docker-compose -f docker-compose.prod.yml logs --tail=200 frontend
+        
+        log "4. 检查 npm 进程..."
+        docker-compose -f docker-compose.prod.yml exec frontend ps aux | grep npm
+        
+        log "5. 检查服务配置..."
+        docker-compose -f docker-compose.prod.yml exec frontend cat package.json
+        
+        error "服务无响应，请检查以上诊断信息"
+        return 1
     done
     
     error "前端服务启动失败，请检查以上诊断信息"
@@ -392,6 +372,83 @@ check_and_update_nginx_conf() {
     return 0
 }
 
+# 测试部署
+test_deployment() {
+    log "开始测试部署..."
+    local max_retries=3
+    local retry=0
+    
+    # 1. 测试容器状态
+    log "1. 测试容器状态..."
+    while [ $retry -lt $max_retries ]; do
+        if ! docker-compose -f docker-compose.prod.yml ps | grep -q "frontend.*Up"; then
+            if [ $retry -eq $((max_retries-1)) ]; then
+                error "前端容器未正常运行"
+                return 1
+            fi
+            log "等待容器启动... ($(($retry+1))/$max_retries)"
+            sleep 5
+            retry=$((retry+1))
+            continue
+        fi
+        success "前端容器运行正常"
+        break
+    done
+    
+    # 2. 测试构建
+    log "2. 测试构建..."
+    if ! docker-compose -f docker-compose.prod.yml logs frontend | grep -q "build completed"; then
+        error "前端构建可能未完成"
+        docker-compose -f docker-compose.prod.yml logs frontend
+        return 1
+    fi
+    success "构建测试通过"
+    
+    # 3. 测试网络连接
+    log "3. 测试网络连接..."
+    if ! docker network inspect app_network >/dev/null 2>&1; then
+        error "网络连接测试失败"
+        return 1
+    fi
+    success "网络连接测试通过"
+    
+    # 4. 测试服务可访问性
+    log "4. 测试服务可访问性..."
+    retry=0
+    while [ $retry -lt $max_retries ]; do
+        if curl -s -o /dev/null -w "%{http_code}" http://localhost:4173 | grep -q "200"; then
+            success "服务可访问性测试通过"
+            break
+        fi
+        if [ $retry -eq $((max_retries-1)) ]; then
+            error "服务无法访问"
+            return 1
+        fi
+        log "等待服务就绪... ($(($retry+1))/$max_retries)"
+        sleep 5
+        retry=$((retry+1))
+    done
+    
+    # 5. 测试 Nginx 配置
+    log "5. 测试 Nginx 配置..."
+    if ! sudo nginx -t; then
+        error "Nginx 配置测试失败"
+        return 1
+    fi
+    success "Nginx 配置测试通过"
+    
+    # 6. 测试 SSL 证书
+    log "6. 测试 SSL 证书..."
+    if ! openssl x509 -in /etc/nginx/ssl/play.saga4v.com/fullchain.pem -noout -text >/dev/null 2>&1; then
+        error "SSL 证书测试失败"
+        return 1
+    fi
+    success "SSL 证书测试通过"
+    
+    success "所有测试通过！"
+    return 0
+}
+
 # 部署服务
 deploy_services() {
     log "开始部署服务..."
@@ -436,9 +493,11 @@ deploy_services() {
         return 1
     fi
     
-    # 等待服务启动
-    log "等待服务启动..."
-    sleep 10
+    # 运行部署测试
+    if ! test_deployment; then
+        error "部署测试失败"
+        return 1
+    fi
     
     # 检查各个服务的日志
     check_container_logs "frontend"

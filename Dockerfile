@@ -1,4 +1,4 @@
-FROM node:20-alpine as builder
+FROM node:20-alpine
 
 # Set working directory
 WORKDIR /app
@@ -15,25 +15,18 @@ COPY . .
 # 设置环境变量
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
+ENV PORT=5173
 
-# Build the application
-RUN npm run build
-
-# 使用 node 运行预览服务
-FROM node:20-alpine
-
-WORKDIR /app
+# 清理、安装、构建
+RUN npm run clean && \
+    npm install && \
+    npm run build
 
 # 安装基本工具
 RUN apk add --no-cache curl
 
-# 只复制必要的文件
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json .
-
 # 暴露端口
 EXPOSE 5173
 
-# 使用 preview 命令启动服务
-CMD ["sh", "-c", "export PATH=/app/node_modules/.bin:$PATH && npm run preview:prod"]
+# 启动命令
+CMD ["sh", "-c", "npm run preview"]

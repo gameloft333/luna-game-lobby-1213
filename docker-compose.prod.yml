@@ -11,16 +11,11 @@ services:
       - /etc/nginx/ssl/play.saga4v.com/fullchain.pem:/etc/nginx/ssl/fullchain.pem:ro
       - /etc/nginx/ssl/play.saga4v.com/privkey.pem:/etc/nginx/ssl/privkey.pem:ro
     depends_on:
-      - frontend
+      frontend:
+        condition: service_healthy
     networks:
       - app_network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "nginx", "-t"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
 
   frontend:
     build: 
@@ -33,6 +28,7 @@ services:
     environment:
       - NODE_ENV=production
       - HOST=0.0.0.0
+      - PORT=5173
       - VITE_USE_HTTPS=true
       # Firebase Config
       - VITE_FIREBASE_API_KEY
@@ -47,11 +43,11 @@ services:
       - app_network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5173/"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      interval: 10s
+      timeout: 5s
       retries: 3
-      start_period: 90s
+      start_period: 30s
 
 networks:
   app_network:
