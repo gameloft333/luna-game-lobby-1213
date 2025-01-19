@@ -390,20 +390,11 @@ test_deployment() {
     
     # 1. 测试容器状态
     log "1. 测试容器状态..."
-    while [ $retry -lt $max_retries ]; do
-        if ! docker-compose -f docker-compose.prod.yml ps | grep -q "frontend.*Up"; then
-            if [ $retry -eq $((max_retries-1)) ]; then
-                error "前端容器未正常运行"
-                return 1
-            fi
-            log "等待容器启动... ($(($retry+1))/$max_retries)"
-            sleep 5
-            retry=$((retry+1))
-            continue
-        fi
-        success "前端容器运行正常"
-        break
-    done
+    if ! docker-compose -f docker-compose.prod.yml ps | grep -q "frontend.*Up"; then
+        error "前端容器未正常运行"
+        return 1
+    fi
+    success "前端容器运行正常"
     
     # 2. 测试构建
     log "2. 测试构建..."
@@ -417,8 +408,10 @@ test_deployment() {
     # 3. 测试网络连接
     log "3. 测试网络连接..."
     if ! docker network inspect app_network >/dev/null 2>&1; then
-        error "网络连接测试失败"
-        return 1
+        if ! docker network inspect luna-game-lobby-1213_app_network >/dev/null 2>&1; then
+            error "网络连接测试失败"
+            return 1
+        fi
     fi
     success "网络连接测试通过"
     
@@ -426,7 +419,7 @@ test_deployment() {
     log "4. 测试服务可访问性..."
     retry=0
     while [ $retry -lt $max_retries ]; do
-        if curl -s -o /dev/null -w "%{http_code}" http://localhost:5173 | grep -q "200"; then
+        if docker exec luna-game-frontend curl -s -o /dev/null -w "%{http_code}" http://localhost:5173 | grep -q "200"; then
             success "服务可访问性测试通过"
             break
         fi
@@ -441,7 +434,7 @@ test_deployment() {
     
     # 5. 测试 Nginx 配置
     log "5. 测试 Nginx 配置..."
-    if ! sudo nginx -t; then
+    if ! docker exec luna-game-nginx nginx -t >/dev/null 2>&1; then
         error "Nginx 配置测试失败"
         return 1
     fi
@@ -449,11 +442,28 @@ test_deployment() {
     
     # 6. 测试 SSL 证书
     log "6. 测试 SSL 证书..."
-    if ! openssl x509 -in /etc/nginx/ssl/play.saga4v.com/fullchain.pem -noout -text >/dev/null 2>&1; then
-        error "SSL 证书测试失败"
+    if ! docker exec luna-game-nginx test -f /etc/nginx/ssl/fullchain.pem; then
+        error "SSL 证书文件不存在"
         return 1
     fi
-    success "SSL 证书测试通过"
+    
+    if ! docker exec luna-game-nginx openssl x509 -in /etc/nginx/ssl/fullchain.pem -noout -text >/dev/null 2>&1; then
+        error "SSL 证书格式测试失败"
+        return 1
+    fi
+    
+    # 检查证书有效期
+    local expiry=$(docker exec luna-game-nginx openssl x509 -in /etc/nginx/ssl/fullchain.pem -noout -enddate | cut -d= -f2)
+    local expiry_epoch=$(date -d "${expiry}" +%s)
+    local now_epoch=$(date +%s)
+    local days_remaining=$(( ($expiry_epoch - $now_epoch) / 86400 ))
+    
+    if [ $days_remaining -lt 30 ]; then
+        error "SSL 证书即将过期，剩余 ${days_remaining} 天"
+        return 1
+    fi
+    
+    success "SSL 证书测试通过（剩余 ${days_remaining} 天）"
     
     success "所有测试通过！"
     return 0
