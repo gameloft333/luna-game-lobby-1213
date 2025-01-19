@@ -237,6 +237,36 @@ check_container_logs() {
     return 0
 }
 
+# 检查容器文件系统
+check_container_files() {
+    local container_name=$1
+    log "检查容器 ${container_name} 的文件系统..."
+    
+    # 检查工作目录
+    log "1. 检查工作目录内容..."
+    docker exec ${container_name} ls -la /app || {
+        error "无法访问工作目录"
+        return 1
+    }
+    
+    # 检查 package.json
+    log "2. 检查 package.json..."
+    docker exec ${container_name} cat /app/package.json || {
+        error "无法读取 package.json"
+        return 1
+    }
+    
+    # 检查构建目录
+    log "3. 检查构建目录..."
+    docker exec ${container_name} ls -la /app/dist || {
+        error "无法访问构建目录"
+        return 1
+    }
+    
+    success "容器文件系统检查完成"
+    return 0
+}
+
 # 等待前端服务启动并诊断问题
 wait_and_diagnose_frontend() {
     log "等待前端服务就绪..."
@@ -244,8 +274,8 @@ wait_and_diagnose_frontend() {
     local attempt=1
     
     while [ $attempt -le $max_attempts ]; do
-        # 检查容器状态
-        if ! docker-compose -f docker-compose.prod.yml ps | grep -q "frontend.*Up"; then
+        # 检查容器是否运行
+        if ! docker ps | grep -q "luna-game-frontend.*Up"; then
             if [ $attempt -eq $max_attempts ]; then
                 error "前端容器未能正常启动"
                 return 1
@@ -255,44 +285,38 @@ wait_and_diagnose_frontend() {
             attempt=$((attempt + 1))
             continue
         fi
-
+        
+        # 检查容器文件系统
+        if ! check_container_files "luna-game-frontend"; then
+            if [ $attempt -eq $max_attempts ]; then
+                error "容器文件系统检查失败"
+                return 1
+            fi
+            log "等待文件系统就绪... (${attempt}/${max_attempts})"
+            sleep 5
+            attempt=$((attempt + 1))
+            continue
+        fi
+        
         # 检查服务可用性
         if curl -s "http://localhost:5173" >/dev/null 2>&1; then
             success "前端服务已就绪"
             return 0
         fi
-
-        # 如果服务未响应，但还有重试次数，继续等待
+        
         if [ $attempt -lt $max_attempts ]; then
             log "等待服务响应... (${attempt}/${max_attempts})"
             sleep 5
             attempt=$((attempt + 1))
             continue
         fi
-
-        # 如果达到最大重试次数，收集诊断信息
-        error "服务启动但无法访问，诊断信息："
         
-        log "1. 检查进程..."
-        docker-compose -f docker-compose.prod.yml exec frontend ps aux
-        
-        log "2. 检查端口..."
-        docker-compose -f docker-compose.prod.yml exec frontend netstat -tlpn
-        
-        log "3. 检查日志..."
-        docker-compose -f docker-compose.prod.yml logs --tail=200 frontend
-        
-        log "4. 检查 npm 进程..."
-        docker-compose -f docker-compose.prod.yml exec frontend ps aux | grep npm
-        
-        log "5. 检查服务配置..."
-        docker-compose -f docker-compose.prod.yml exec frontend cat package.json
-        
-        error "服务无响应，请检查以上诊断信息"
+        error "服务启动但无法访问，收集诊断信息..."
+        docker logs luna-game-frontend --tail 100
         return 1
     done
     
-    error "前端服务启动失败，请检查以上诊断信息"
+    error "前端服务启动失败"
     return 1
 }
 
@@ -489,8 +513,80 @@ clean_and_rebuild() {
     return 0
 }
 
+# 调试部署问题
+debug_deployment() {
+    log "开始部署调试..."
+    
+    # 1. 清理所有资源
+    log "1. 清理所有资源..."
+    if ! docker-compose -f docker-compose.prod.yml down --volumes --remove-orphans; then
+        error "清理容器失败"
+        return 1
+    fi
+    
+    if ! docker system prune -af; then
+        error "清理 Docker 系统资源失败"
+        return 1
+    fi
+    
+    # 2. 验证构建上下文
+    log "2. 验证构建上下文..."
+    log "当前目录文件列表："
+    ls -la
+    
+    # 检查必要文件
+    local required_files=("package.json" "Dockerfile" "docker-compose.prod.yml" ".env.production")
+    for file in "${required_files[@]}"; do
+        if [ ! -f "$file" ]; then
+            error "缺少必要文件: $file"
+            return 1
+        fi
+    done
+    
+    # 3. 构建镜像（带详细日志）
+    log "3. 构建镜像（带详细日志）..."
+    if ! docker-compose -f docker-compose.prod.yml build --no-cache --progress=plain frontend; then
+        error "构建镜像失败"
+        return 1
+    fi
+    
+    # 4. 启动服务并实时查看日志
+    log "4. 启动服务并查看日志..."
+    if ! docker-compose -f docker-compose.prod.yml up --force-recreate -d; then
+        error "启动服务失败"
+        return 1
+    fi
+    
+    # 显示实时日志
+    log "显示容器日志..."
+    docker-compose -f docker-compose.prod.yml logs -f --tail=100
+    
+    success "调试完成"
+    return 0
+}
+
 # 部署服务
 deploy_services() {
+    local debug_mode=0
+    
+    # 检查是否有调试参数
+    while [[ "$#" -gt 0 ]]; do
+        case $1 in
+            --debug) debug_mode=1; shift ;;
+            *) shift ;;
+        esac
+    done
+    
+    # 如果是调试模式，运行调试函数
+    if [ "$debug_mode" -eq 1 ]; then
+        log "启动调试模式..."
+        if ! debug_deployment; then
+            error "调试过程中发现错误"
+            return 1
+        fi
+        return 0
+    fi
+    
     log "开始部署服务..."
     
     # 首先清理和重建
