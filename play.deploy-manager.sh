@@ -61,6 +61,12 @@ check_env_file() {
         return 1
     fi
 
+    # 检查文件格式
+    if grep -q '[^[:print:]]' "$env_file"; then
+        error "环境变量文件包含非打印字符，请检查格式"
+        return 1
+    fi
+
     # 检查必要的环境变量
     local required_vars=(
         "VITE_FIREBASE_API_KEY"
@@ -75,11 +81,9 @@ check_env_file() {
         fi
     done
 
-    if [ ${#missing_vars[@]} -ne 0 ]; then
-        error "以下必要环境变量未定义："
-        for var in "${missing_vars[@]}"; do
-            echo "   - $var"
-        done
+    # 检查是否存在未转义的特殊字符
+    if grep -q '^[^#].*[^\\]"' "$env_file"; then
+        error "环境变量文件中存在未转义的引号，请检查格式"
         return 1
     fi
 
