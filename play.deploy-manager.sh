@@ -249,46 +249,60 @@ wait_and_diagnose_frontend() {
         
         if [ "$container_status" = "Exit" ]; then
             error "前端容器异常退出，诊断信息："
-            log "1. 检查容器日志..."
-            docker-compose -f docker-compose.prod.yml logs frontend
+            
+            log "1. 容器构建日志..."
+            docker-compose -f docker-compose.prod.yml logs --no-color frontend
             
             log "2. 检查构建过程..."
-            docker-compose -f docker-compose.prod.yml logs frontend | grep "npm"
+            docker-compose -f docker-compose.prod.yml logs frontend | grep -i "error\|fail\|exception"
             
             log "3. 检查环境变量..."
-            docker-compose -f docker-compose.prod.yml exec frontend env
+            docker-compose -f docker-compose.prod.yml config
             
             log "4. 检查网络连接..."
             docker network inspect app_network
             
-            log "5. 检查端口占用..."
-            netstat -tlpn | grep 5173
+            log "5. 检查容器详细信息..."
+            docker inspect $(docker-compose -f docker-compose.prod.yml ps -q frontend)
             
+            log "6. 检查文件系统..."
+            docker-compose -f docker-compose.prod.yml exec frontend ls -la /app
+            docker-compose -f docker-compose.prod.yml exec frontend ls -la /app/dist
+            
+            log "7. 检查 Node 版本和 npm 配置..."
+            docker-compose -f docker-compose.prod.yml exec frontend node -v
+            docker-compose -f docker-compose.prod.yml exec frontend npm config list
+            
+            error "请检查以上诊断信息，特别注意构建日志中的错误信息"
             return 1
         fi
         
         if docker-compose -f docker-compose.prod.yml ps | grep -q "frontend.*Up"; then
-            if curl -s "http://frontend:5173" >/dev/null 2>&1; then
+            log "容器已启动，检查服务可用性..."
+            if curl -s "http://localhost:5173" >/dev/null 2>&1; then
                 success "前端服务已就绪"
                 return 0
             else
-                log "服务已启动但端口未响应，尝试诊断... (${attempt}/${max_attempts})"
                 if [ $attempt -eq $max_attempts ]; then
-                    error "前端服务启动超时，诊断信息："
-                    log "1. 检查服务日志..."
-                    docker-compose -f docker-compose.prod.yml logs --tail=100 frontend
+                    error "服务启动但无法访问，诊断信息："
                     
-                    log "2. 检查 Node 进程..."
-                    docker-compose -f docker-compose.prod.yml exec frontend ps aux | grep node
+                    log "1. 检查进程..."
+                    docker-compose -f docker-compose.prod.yml exec frontend ps aux
                     
-                    log "3. 检查端口监听..."
+                    log "2. 检查端口..."
                     docker-compose -f docker-compose.prod.yml exec frontend netstat -tlpn
                     
-                    log "4. 检查 dist 目录..."
-                    docker-compose -f docker-compose.prod.yml exec frontend ls -la /app/dist
+                    log "3. 检查日志..."
+                    docker-compose -f docker-compose.prod.yml logs --tail=200 frontend
                     
-                    log "5. 检查 npm 脚本..."
-                    docker-compose -f docker-compose.prod.yml exec frontend cat package.json | grep \"scripts\"
+                    log "4. 检查 npm 进程..."
+                    docker-compose -f docker-compose.prod.yml exec frontend ps aux | grep npm
+                    
+                    log "5. 检查服务配置..."
+                    docker-compose -f docker-compose.prod.yml exec frontend cat package.json
+                    
+                    error "服务无响应，请检查以上诊断信息"
+                    return 1
                 fi
             fi
         fi
