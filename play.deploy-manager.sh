@@ -256,48 +256,36 @@ check_and_update_nginx_conf() {
         log "创建备份目录..."
         sudo mkdir -p "$backup_dir"
     fi
-    
-    # 如果服务器上存在配置文件
-    if [ -f "$server_conf" ]; then
-        # 比较文件内容
-        if ! sudo diff -q "$server_conf" "$local_conf" >/dev/null 2>&1; then
-            log "检测到配置文件变更，准备更新..."
-            
-            # 创建备份
-            log "备份当前服务器配置..."
-            sudo cp "$server_conf" "${backup_dir}/play.conf.${timestamp}.bak"
-            
-            # 更新配置
-            log "更新 Nginx 配置..."
-            sudo cp "$local_conf" "$server_conf"
-            
-            # 测试新配置
-            log "测试新的 Nginx 配置..."
-            if ! sudo nginx -t; then
-                error "新的 Nginx 配置测试失败，正在回滚..."
-                sudo cp "${backup_dir}/play.conf.${timestamp}.bak" "$server_conf"
-                return 1
-            fi
-            
-            success "Nginx 配置更新成功"
-        else
-            log "Nginx 配置文件无变更，跳过更新"
-        fi
-    else
-        # 如果服务器上不存在配置文件，直接复制
-        log "服务器上不存在配置文件，正在创建..."
-        sudo cp "$local_conf" "$server_conf"
-        
-        # 测试新配置
-        log "测试新的 Nginx 配置..."
-        if ! sudo nginx -t; then
-            error "新的 Nginx 配置测试失败"
-            return 1
-        fi
-        
-        success "Nginx 配置创建成功"
+
+    # 确保 Docker 网络和服务已经启动
+    log "检查 Docker 服务状态..."
+    if ! docker-compose -f docker-compose.prod.yml ps | grep -q "frontend"; then
+        log "前端服务未运行，先启动服务..."
+        docker-compose -f docker-compose.prod.yml up -d frontend
+        sleep 10
     fi
     
+    # 如果服务器上存在配置文件，进行备份
+    if [ -f "$server_conf" ]; then
+        log "备份当前服务器配置..."
+        sudo cp "$server_conf" "${backup_dir}/play.conf.${timestamp}.bak"
+    fi
+    
+    # 更新配置
+    log "更新 Nginx 配置..."
+    sudo cp "$local_conf" "$server_conf"
+    
+    # 测试新配置前确保 Docker 网络正常
+    log "测试新的 Nginx 配置..."
+    if ! sudo nginx -t; then
+        error "新的 Nginx 配置测试失败，正在回滚..."
+        if [ -f "${backup_dir}/play.conf.${timestamp}.bak" ]; then
+            sudo cp "${backup_dir}/play.conf.${timestamp}.bak" "$server_conf"
+        fi
+        return 1
+    fi
+    
+    success "Nginx 配置更新成功"
     return 0
 }
 
