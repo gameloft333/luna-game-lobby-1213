@@ -18,9 +18,11 @@ ENV HOST=0.0.0.0
 ENV PORT=5173
 ENV VITE_USE_HTTPS=true
 
-# 清理、安装、构建
-RUN npm run clean && \
-    npm run build
+# 修改构建和启动命令
+RUN npm run build
+
+# 安装 serve 工具来托管静态文件
+RUN npm install -g serve
 
 # 安装基本工具
 RUN apk add --no-cache curl
@@ -28,5 +30,5 @@ RUN apk add --no-cache curl
 # 暴露端口
 EXPOSE 5173
 
-# 启动命令
-CMD ["npm", "run", "preview"]
+# 使用 serve 来托管构建后的文件
+CMD ["serve", "-s", "dist", "-l", "5173"]
