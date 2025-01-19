@@ -347,7 +347,7 @@ check_and_update_nginx_conf() {
     if [ ! -f "$local_conf" ]; then
         error "本地 Nginx 配置文件不存在: $local_conf"
         return 1
-    }
+    fi
     
     # 停止系统 Nginx 服务
     log "停止系统 Nginx 服务..."
