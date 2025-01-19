@@ -237,6 +237,71 @@ check_container_logs() {
     return 0
 }
 
+# 等待前端服务启动并诊断问题
+wait_and_diagnose_frontend() {
+    log "等待前端服务就绪..."
+    local max_attempts=30
+    local attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        # 检查容器状态
+        local container_status=$(docker-compose -f docker-compose.prod.yml ps frontend | grep -o "Up\|Exit")
+        
+        if [ "$container_status" = "Exit" ]; then
+            error "前端容器异常退出，诊断信息："
+            log "1. 检查容器日志..."
+            docker-compose -f docker-compose.prod.yml logs frontend
+            
+            log "2. 检查构建过程..."
+            docker-compose -f docker-compose.prod.yml logs frontend | grep "npm"
+            
+            log "3. 检查环境变量..."
+            docker-compose -f docker-compose.prod.yml exec frontend env
+            
+            log "4. 检查网络连接..."
+            docker network inspect app_network
+            
+            log "5. 检查端口占用..."
+            netstat -tlpn | grep 5173
+            
+            return 1
+        fi
+        
+        if docker-compose -f docker-compose.prod.yml ps | grep -q "frontend.*Up"; then
+            if curl -s "http://frontend:5173" >/dev/null 2>&1; then
+                success "前端服务已就绪"
+                return 0
+            else
+                log "服务已启动但端口未响应，尝试诊断... (${attempt}/${max_attempts})"
+                if [ $attempt -eq $max_attempts ]; then
+                    error "前端服务启动超时，诊断信息："
+                    log "1. 检查服务日志..."
+                    docker-compose -f docker-compose.prod.yml logs --tail=100 frontend
+                    
+                    log "2. 检查 Node 进程..."
+                    docker-compose -f docker-compose.prod.yml exec frontend ps aux | grep node
+                    
+                    log "3. 检查端口监听..."
+                    docker-compose -f docker-compose.prod.yml exec frontend netstat -tlpn
+                    
+                    log "4. 检查 dist 目录..."
+                    docker-compose -f docker-compose.prod.yml exec frontend ls -la /app/dist
+                    
+                    log "5. 检查 npm 脚本..."
+                    docker-compose -f docker-compose.prod.yml exec frontend cat package.json | grep \"scripts\"
+                fi
+            fi
+        fi
+        
+        log "等待前端服务启动... (${attempt}/${max_attempts})"
+        sleep 5
+        attempt=$((attempt + 1))
+    done
+    
+    error "前端服务启动失败，请检查以上诊断信息"
+    return 1
+}
+
 # 检查并更新 Nginx 配置
 check_and_update_nginx_conf() {
     log "检查 Nginx 配置文件..."
@@ -273,24 +338,11 @@ check_and_update_nginx_conf() {
         return 1
     fi
     
-    # 4. 等待前端服务完全启动
-    log "等待前端服务就绪..."
-    local max_attempts=30
-    local attempt=1
-    while [ $attempt -le $max_attempts ]; do
-        if docker-compose -f docker-compose.prod.yml ps | grep -q "frontend.*Up"; then
-            if curl -s "http://frontend:5173" >/dev/null 2>&1; then
-                success "前端服务已就绪"
-                break
-            fi
-        fi
-        log "等待前端服务启动... (${attempt}/${max_attempts})"
-        sleep 5
-        attempt=$((attempt + 1))
-    done
-    
-    if [ $attempt -gt $max_attempts ]; then
-        error "前端服务启动超时"
+    # 启动并诊断前端服务
+    if ! wait_and_diagnose_frontend; then
+        error "前端服务启动失败，终止 Nginx 配置更新"
+        # 清理资源
+        docker-compose -f docker-compose.prod.yml down
         return 1
     fi
     
@@ -311,6 +363,14 @@ check_and_update_nginx_conf() {
         if [ -f "${backup_dir}/play.conf.${timestamp}.bak" ]; then
             sudo cp "${backup_dir}/play.conf.${timestamp}.bak" "$server_conf"
         fi
+        return 1
+    fi
+    
+    # 启动并诊断前端服务
+    if ! wait_and_diagnose_frontend; then
+        error "前端服务启动失败，终止 Nginx 配置更新"
+        # 清理资源
+        docker-compose -f docker-compose.prod.yml down
         return 1
     fi
     
