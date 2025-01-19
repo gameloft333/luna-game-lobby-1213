@@ -28,8 +28,8 @@ services:
     image: nginx:latest
     container_name: luna-game-nginx
     ports:
-      - "80:80"
-      - "443:443"
+      - "9080:80"
+      - "9443:443"
     volumes:
       - ./conf.d/play.conf:/etc/nginx/conf.d/play.conf:ro
       - /etc/nginx/ssl/play.saga4v.com/fullchain.pem:/etc/nginx/ssl/fullchain.pem:ro
