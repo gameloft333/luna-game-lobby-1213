@@ -203,6 +203,40 @@ process_env_file() {
     return 0
 }
 
+# 检查容器日志
+check_container_logs() {
+    local container_name=$1
+    log "检查 ${container_name} 容器日志..."
+    
+    # 获取容器ID
+    local container_id=$(docker-compose -f docker-compose.prod.yml ps -q $container_name)
+    
+    if [ -z "$container_id" ]; then
+        error "找不到 ${container_name} 容器"
+        return 1
+    fi
+    
+    # 如果是 frontend 容器，检查 npm 命令是否可用
+    if [ "$container_name" = "frontend" ]; then
+        log "检查 npm 命令是否可用..."
+        if ! docker exec $container_id which npm > /dev/null; then
+            error "容器中未找到 npm 命令"
+            return 1
+        fi
+        success "npm 命令检查通过"
+    fi
+    
+    # 显示容器状态
+    log "容器状态信息："
+    docker inspect --format='状态: {{.State.Status}}, 健康状态: {{.State.Health.Status}}' $container_id
+    
+    # 显示最近的日志
+    log "${container_name} 最近日志："
+    docker logs --tail=50 $container_id
+    
+    return 0
+}
+
 # 部署服务
 deploy_services() {
     log "开始部署服务..."
@@ -246,6 +280,14 @@ deploy_services() {
         error "服务启动失败"
         return 1
     fi
+    
+    # 等待服务启动
+    log "等待服务启动..."
+    sleep 10
+    
+    # 检查各个服务的日志
+    check_container_logs "frontend"
+    check_container_logs "nginx"
     
     success "服务部署完成"
     return 0
