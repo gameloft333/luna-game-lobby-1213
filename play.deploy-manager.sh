@@ -407,8 +407,8 @@ test_deployment() {
     
     # 2. 测试构建
     log "2. 测试构建..."
-    if ! docker-compose -f docker-compose.prod.yml logs frontend | grep -q "build completed"; then
-        error "前端构建可能未完成"
+    if ! docker exec luna-game-frontend ls -l /app/dist >/dev/null 2>&1; then
+        error "前端构建目录不存在"
         docker-compose -f docker-compose.prod.yml logs frontend
         return 1
     fi
@@ -426,7 +426,7 @@ test_deployment() {
     log "4. 测试服务可访问性..."
     retry=0
     while [ $retry -lt $max_retries ]; do
-        if curl -s -o /dev/null -w "%{http_code}" http://localhost:4173 | grep -q "200"; then
+        if curl -s -o /dev/null -w "%{http_code}" http://localhost:5173 | grep -q "200"; then
             success "服务可访问性测试通过"
             break
         fi
