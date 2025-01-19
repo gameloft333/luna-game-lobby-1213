@@ -54,14 +54,20 @@ echo Checking for sensitive information...
 git diff --cached | findstr /I "private_key api_key secret credential password token" >nul
 if %ERRORLEVEL% EQU 0 (
     echo Warning: Potential sensitive information detected!
-    echo The following options are available:
+    echo.
     echo [1] Continue with push (Not recommended)
     echo [2] Review changes
     echo [3] Cancel
+    echo.
     set /p "sensitive_choice=Select option (1-3): "
 
     if "!sensitive_choice!"=="1" (
+        echo.
         echo Proceeding with push...
+        echo Please note: You might need to approve this push in GitHub security settings.
+        echo Opening security settings page...
+        start https://github.com/gameloft333/luna-game-lobby-1213/security/secret-scanning/unblock-secret/2rmjgUNurmxglgvi0vpCm85tXf7
+        timeout /t 3 >nul
     ) else if "!sensitive_choice!"=="2" (
         git diff --cached
         echo.
@@ -92,16 +98,25 @@ if %ERRORLEVEL% NEQ 0 (
         echo.
         echo GitHub detected sensitive information in your commits.
         echo Options:
-        echo [1] Visit security settings page
-        echo [2] Remove sensitive information
+        echo [1] Visit security settings page and approve push
+        echo [2] Remove sensitive information from .env.development
         echo [3] Cancel push
         set /p "security_choice=Select option (1-3): "
 
         if "!security_choice!"=="1" (
-            start https://github.com/gameloft333/luna-game-lobby-1213/settings/security_analysis
-            echo Please review security settings and try again.
+            echo Opening security settings page...
+            start https://github.com/gameloft333/luna-game-lobby-1213/security/secret-scanning/unblock-secret/2rmjgUNurmxglgvi0vpCm85tXf7
+            echo.
+            echo After approving in GitHub, press any key to retry push...
+            pause >nul
+            goto push_changes
         ) else if "!security_choice!"=="2" (
-            echo Please remove sensitive information and commit again.
+            echo Please remove sensitive information from .env.development and commit again.
+            echo Recommended steps:
+            echo 1. Remove Google Cloud Service Account Credentials
+            echo 2. Add credentials to .gitignore
+            echo 3. Use environment variables instead
+            timeout /t 5 >nul
         )
         goto menu
     ) else (
