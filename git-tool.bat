@@ -55,7 +55,7 @@ git diff --cached | findstr /I "private_key api_key secret credential password t
 if %ERRORLEVEL% EQU 0 (
     echo Warning: Potential sensitive information detected!
     echo.
-    echo [1] Continue with push (Not recommended)
+    echo [1] Continue with push (Not recommended^)
     echo [2] Review changes
     echo [3] Cancel
     echo.
@@ -64,9 +64,11 @@ if %ERRORLEVEL% EQU 0 (
     if "!sensitive_choice!"=="1" (
         echo.
         echo Proceeding with push...
-        echo Please note: You might need to approve this push in GitHub security settings.
-        echo Opening security settings page...
-        start https://github.com/gameloft333/luna-game-lobby-1213/security/secret-scanning/unblock-secret/2rmjgUNurmxglgvi0vpCm85tXf7
+        if not defined SECURITY_PAGE_OPENED (
+            echo Please approve this push in GitHub security settings.
+            start https://github.com/gameloft333/luna-game-lobby-1213/security/secret-scanning/unblock-secret/2rmjgUNurmxglgvi0vpCm85tXf7
+            set SECURITY_PAGE_OPENED=1
+        )
         timeout /t 3 >nul
     ) else if "!sensitive_choice!"=="2" (
         git diff --cached
@@ -92,7 +94,6 @@ git config --global http.sslVerify false
 git push origin %current_branch%
 if %ERRORLEVEL% NEQ 0 (
     echo Push failed. Checking for security warnings...
-    
     git push origin %current_branch% 2>&1 | findstr /I "secret-scanning push-protection" >nul
     if %ERRORLEVEL% EQU 0 (
         echo.
