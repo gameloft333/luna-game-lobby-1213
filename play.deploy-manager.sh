@@ -81,24 +81,30 @@ check_env_file() {
         return 1
     fi
 
-    # 处理环境变量文件
+    # 创建临时文件处理环境变量
     local temp_env=$(mktemp)
-    cp "$env_file" "$temp_env"
     
-    # 移除注释行和空行
-    sed -i '/^#/d;/^$/d' "$temp_env"
-    
-    # 移除包含 FIREBASE_PRIVATE_KEY 的行
-    sed -i '/FIREBASE_PRIVATE_KEY/d' "$temp_env"
-    
-    # 检查其余变量的格式
+    # 只复制标准格式的环境变量行到临时文件
+    while IFS= read -r line; do
+        # 跳过空行和注释
+        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+        
+        # 跳过包含 JSON 格式的行
+        [[ "$line" =~ [\{\}] ]] && continue
+        
+        # 只处理标准的 KEY=VALUE 格式
+        if [[ "$line" =~ ^[A-Z_][A-Z0-9_]*= ]]; then
+            echo "$line" >> "$temp_env"
+        fi
+    done < "$env_file"
+
+    # 检查剩余变量的格式
     while IFS='=' read -r key value; do
         # 跳过空行
         [ -z "$key" ] && continue
         
         # 移除前后的空格
         key=$(echo "$key" | xargs)
-        value=$(echo "$value" | xargs)
         
         # 检查键名格式
         if [[ ! "$key" =~ ^[A-Z_][A-Z0-9_]*$ ]]; then
