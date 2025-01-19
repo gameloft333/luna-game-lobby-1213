@@ -3,6 +3,9 @@ FROM node:20-alpine
 # Set working directory
 WORKDIR /app
 
+# 先安装基础工具
+RUN apk add --no-cache curl
+
 # Copy package files
 COPY package*.json ./
 
@@ -24,11 +27,8 @@ RUN npm run build
 # 安装 serve 工具来托管静态文件
 RUN npm install -g serve
 
-# 安装基本工具
-RUN apk add --no-cache curl
-
 # 暴露端口
 EXPOSE 5173
 
 # 使用 serve 来托管构建后的文件
-CMD ["serve", "-s", "dist", "-l", "5173"]
+CMD ["serve", "-s", "dist", "-l", "tcp://0.0.0.0:5173"]

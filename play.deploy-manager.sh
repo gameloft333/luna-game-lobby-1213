@@ -289,17 +289,29 @@ wait_and_diagnose_frontend() {
         
         case $container_status in
             "running")
+                # 检查是否是正确的进程
+                if ! docker exec luna-game-frontend ps aux | grep -q "serve.*dist"; then
+                    error "容器运行的不是前端服务进程"
+                    log "当前运行的进程："
+                    docker exec luna-game-frontend ps aux
+                    return 1
+                fi
+                
                 # 检查服务是否可访问
                 if docker exec luna-game-frontend curl -s http://localhost:5173 >/dev/null 2>&1; then
                     success "前端服务已就绪"
                     return 0
                 else
-                    log "服务进程信息："
-                    docker exec luna-game-frontend ps aux
-                    log "服务端口信息："
-                    docker exec luna-game-frontend netstat -tlpn || true
-                    log "最新日志："
-                    docker logs --tail 10 luna-game-frontend
+                    if [ $attempt -eq $max_attempts ]; then
+                        error "服务无法访问，最后诊断："
+                        log "1. 进程信息："
+                        docker exec luna-game-frontend ps aux
+                        log "2. 端口信息："
+                        docker exec luna-game-frontend netstat -tlpn || true
+                        log "3. 服务日志："
+                        docker logs --tail 20 luna-game-frontend
+                        return 1
+                    fi
                 fi
                 ;;
             "exited")
@@ -310,20 +322,14 @@ wait_and_diagnose_frontend() {
                 return 1
                 ;;
             *)
+                if [ $attempt -eq $max_attempts ]; then
+                    error "容器未能正常启动"
+                    docker logs luna-game-frontend
+                    return 1
+                fi
                 log "等待容器启动... (状态: $container_status)"
                 ;;
         esac
-        
-        if [ $attempt -eq $max_attempts ]; then
-            error "服务启动超时，最后诊断信息："
-            log "1. 容器状态："
-            docker inspect luna-game-frontend | grep -A 10 "State"
-            log "2. 容器日志："
-            docker logs luna-game-frontend
-            log "3. 容器网络："
-            docker inspect luna-game-frontend | grep -A 20 "NetworkSettings"
-            return 1
-        fi
         
         sleep $wait_time
         attempt=$((attempt + 1))
