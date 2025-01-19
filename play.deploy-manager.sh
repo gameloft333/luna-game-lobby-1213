@@ -341,63 +341,40 @@ wait_and_diagnose_frontend() {
 # 检查并更新 Nginx 配置
 check_and_update_nginx_conf() {
     log "检查 Nginx 配置文件..."
-    local server_conf="/etc/nginx/conf.d/play.conf"
     local local_conf="./conf.d/play.conf"
-    local backup_dir="/etc/nginx/conf.d/backups"
-    local timestamp=$(date +%Y%m%d_%H%M%S)
     
     # 检查本地配置文件是否存在
     if [ ! -f "$local_conf" ]; then
         error "本地 Nginx 配置文件不存在: $local_conf"
         return 1
-    fi
+    }
     
-    # 创建备份目录
-    if [ ! -d "$backup_dir" ]; then
-        log "创建备份目录..."
-        sudo mkdir -p "$backup_dir"
-    fi
-
-    # 确保 Docker 网络和服务已经启动
-    log "确保 Docker 服务正常运行..."
+    # 停止系统 Nginx 服务
+    log "停止系统 Nginx 服务..."
+    sudo systemctl stop nginx
     
-    # 1. 停止并清理所有服务和网络
-    log "停止并清理所有服务..."
-    docker-compose -f docker-compose.prod.yml down
-    
-    # 2. 重新构建前端服务
-    log "重新构建前端服务..."
-    docker-compose -f docker-compose.prod.yml build --no-cache frontend
-    
-    # 3. 启动所有服务
-    log "启动所有服务..."
-    docker-compose -f docker-compose.prod.yml up -d frontend
-    
-    # 启动并诊断前端服务
-    if ! wait_and_diagnose_frontend; then
-        error "前端服务启动失败，终止 Nginx 配置更新"
-        # 清理资源
-        docker-compose -f docker-compose.prod.yml down
+    # 启动 Docker 容器
+    log "启动 Docker 容器..."
+    if ! docker-compose -f docker-compose.prod.yml up -d; then
+        error "Docker 容器启动失败"
         return 1
     fi
     
-    # 备份当前配置
-    if [ -f "$server_conf" ]; then
-        log "备份当前服务器配置..."
-        sudo cp "$server_conf" "${backup_dir}/play.conf.${timestamp}.bak"
+    # 等待服务就绪
+    log "等待服务就绪..."
+    sleep 10
+    
+    # 检查 Nginx 容器配置
+    log "检查 Docker Nginx 配置..."
+    if ! docker exec luna-game-nginx nginx -t; then
+        error "Nginx 配置测试失败"
+        return 1
     fi
     
-    # 更新配置
-    log "更新 Nginx 配置..."
-    sudo cp "$local_conf" "$server_conf"
-    
-    # 测试新配置
-    log "测试新的 Nginx 配置..."
-    if ! sudo nginx -t; then
-        error "新的 Nginx 配置测试失败，正在回滚..."
-        if [ -f "${backup_dir}/play.conf.${timestamp}.bak" ]; then
-            sudo cp "${backup_dir}/play.conf.${timestamp}.bak" "$server_conf"
-        fi
+    # 重新加载 Nginx 配置
+    log "重新加载 Docker Nginx 配置..."
+    if ! docker exec luna-game-nginx nginx -s reload; then
+        error "Nginx 配置重载失败"
         return 1
     fi
     
@@ -630,6 +607,12 @@ deploy_services() {
     # 检查并更新 Nginx 配置
     if ! check_and_update_nginx_conf; then
         error "Nginx 配置更新失败"
+        return 1
+    fi
+    
+    # 管理 SSL 证书
+    if ! manage_ssl_certificates; then
+        error "SSL 证书管理失败"
         return 1
     fi
     
