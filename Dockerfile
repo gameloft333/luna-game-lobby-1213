@@ -4,7 +4,7 @@ FROM node:20-alpine
 WORKDIR /app
 
 # 先安装基础工具
-RUN apk add --no-cache curl
+RUN apk add --no-cache curl netstat-nat
 
 # Copy package files
 COPY package*.json ./
@@ -30,5 +30,5 @@ RUN npm install -g serve
 # 暴露端口
 EXPOSE 5173
 
-# 使用 serve 来托管构建后的文件
-CMD ["serve", "-s", "dist", "-l", "tcp://0.0.0.0:5173"]
+# 使用 shell 形式的 CMD 以确保环境变量被正确解析
+CMD serve -s dist -l tcp://0.0.0.0:5173

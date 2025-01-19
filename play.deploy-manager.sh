@@ -361,18 +361,17 @@ check_and_update_nginx_conf() {
     # 确保 Docker 网络和服务已经启动
     log "确保 Docker 服务正常运行..."
     
-    # 1. 先停止所有服务
-    docker-compose -f docker-compose.prod.yml down --remove-orphans
+    # 1. 停止并清理所有服务和网络
+    log "停止并清理所有服务..."
+    docker-compose -f docker-compose.prod.yml down
     
-    # 2. 确保网络存在
-    docker network create app_network 2>/dev/null || true
+    # 2. 重新构建前端服务
+    log "重新构建前端服务..."
+    docker-compose -f docker-compose.prod.yml build --no-cache frontend
     
-    # 3. 启动前端服务
-    log "启动前端服务..."
-    if ! docker-compose -f docker-compose.prod.yml up -d frontend; then
-        error "前端服务启动失败"
-        return 1
-    fi
+    # 3. 启动所有服务
+    log "启动所有服务..."
+    docker-compose -f docker-compose.prod.yml up -d
     
     # 启动并诊断前端服务
     if ! wait_and_diagnose_frontend; then
@@ -399,14 +398,6 @@ check_and_update_nginx_conf() {
         if [ -f "${backup_dir}/play.conf.${timestamp}.bak" ]; then
             sudo cp "${backup_dir}/play.conf.${timestamp}.bak" "$server_conf"
         fi
-        return 1
-    fi
-    
-    # 启动并诊断前端服务
-    if ! wait_and_diagnose_frontend; then
-        error "前端服务启动失败，终止 Nginx 配置更新"
-        # 清理资源
-        docker-compose -f docker-compose.prod.yml down
         return 1
     fi
     
