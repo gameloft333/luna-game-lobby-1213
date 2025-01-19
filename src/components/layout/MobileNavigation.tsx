@@ -8,7 +8,7 @@ const navItems = [
   { icon: Gamepad2, label: 'Center', path: '/games' },
   { icon: Trophy, label: 'Earn', path: '/tasks' },
   { icon: Users, label: 'Social', path: '/community' },
-  { icon: Wallet, label: 'Profile', path: '/profile' },
+  { icon: Wallet, label: 'Wallet', path: '/profile' },
 ];
 
 export function MobileNavigation() {
