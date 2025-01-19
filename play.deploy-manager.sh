@@ -371,7 +371,7 @@ check_and_update_nginx_conf() {
     
     # 3. 启动所有服务
     log "启动所有服务..."
-    docker-compose -f docker-compose.prod.yml up -d
+    docker-compose -f docker-compose.prod.yml up -d frontend
     
     # 启动并诊断前端服务
     if ! wait_and_diagnose_frontend; then

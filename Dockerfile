@@ -3,8 +3,8 @@ FROM node:20-alpine
 # Set working directory
 WORKDIR /app
 
-# 先安装基础工具
-RUN apk add --no-cache curl netstat-nat
+# 安装基础工具 (使用 net-tools 替代 netstat-nat)
+RUN apk add --no-cache curl net-tools
 
 # Copy package files
 COPY package*.json ./
