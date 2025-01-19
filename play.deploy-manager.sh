@@ -270,53 +270,74 @@ check_container_files() {
 # 等待前端服务启动并诊断问题
 wait_and_diagnose_frontend() {
     log "等待前端服务就绪..."
-    local max_attempts=30
+    local max_attempts=10
     local attempt=1
+    local wait_time=3
     
     while [ $attempt -le $max_attempts ]; do
-        # 检查容器是否运行
-        if ! docker ps | grep -q "luna-game-frontend.*Up"; then
-            if [ $attempt -eq $max_attempts ]; then
-                error "前端容器未能正常启动"
+        # 检查容器是否存在
+        if ! docker ps -a | grep -q "luna-game-frontend"; then
+            error "容器不存在，可能创建失败"
+            log "检查构建日志..."
+            docker-compose -f docker-compose.prod.yml logs --tail=100 frontend
+            return 1
+        fi
+        
+        # 检查容器状态
+        local container_status=$(docker inspect -f '{{.State.Status}}' luna-game-frontend 2>/dev/null)
+        
+        case $container_status in
+            "running")
+                # 检查服务可用性
+                if curl -s "http://localhost:5173" >/dev/null 2>&1; then
+                    success "前端服务已就绪"
+                    return 0
+                fi
+                
+                # 如果运行但无法访问，收集详细信息
+                if [ $attempt -eq $max_attempts ]; then
+                    error "服务运行但无法访问，收集诊断信息..."
+                    
+                    log "1. 容器详细状态："
+                    docker inspect luna-game-frontend
+                    
+                    log "2. 容器日志："
+                    docker logs --tail=100 luna-game-frontend
+                    
+                    log "3. 容器内进程："
+                    docker exec luna-game-frontend ps aux
+                    
+                    log "4. 容器网络信息："
+                    docker exec luna-game-frontend netstat -tlpn
+                    
+                    log "5. 容器环境变量："
+                    docker exec luna-game-frontend env
+                    
+                    return 1
+                fi
+                ;;
+            "created"|"restarting")
+                log "容器正在启动... (${attempt}/${max_attempts})"
+                ;;
+            "exited")
+                error "容器异常退出"
+                log "退出状态码：$(docker inspect -f '{{.State.ExitCode}}' luna-game-frontend)"
+                log "容器日志："
+                docker logs --tail=100 luna-game-frontend
                 return 1
-            fi
-            log "等待容器启动... (${attempt}/${max_attempts})"
-            sleep 5
-            attempt=$((attempt + 1))
-            continue
-        fi
-        
-        # 检查容器文件系统
-        if ! check_container_files "luna-game-frontend"; then
-            if [ $attempt -eq $max_attempts ]; then
-                error "容器文件系统检查失败"
+                ;;
+            *)
+                error "容器状态异常: $container_status"
+                docker inspect luna-game-frontend
                 return 1
-            fi
-            log "等待文件系统就绪... (${attempt}/${max_attempts})"
-            sleep 5
-            attempt=$((attempt + 1))
-            continue
-        fi
+                ;;
+        esac
         
-        # 检查服务可用性
-        if curl -s "http://localhost:5173" >/dev/null 2>&1; then
-            success "前端服务已就绪"
-            return 0
-        fi
-        
-        if [ $attempt -lt $max_attempts ]; then
-            log "等待服务响应... (${attempt}/${max_attempts})"
-            sleep 5
-            attempt=$((attempt + 1))
-            continue
-        fi
-        
-        error "服务启动但无法访问，收集诊断信息..."
-        docker logs luna-game-frontend --tail 100
-        return 1
+        sleep $wait_time
+        attempt=$((attempt + 1))
     done
     
-    error "前端服务启动失败"
+    error "前端服务启动超时"
     return 1
 }
 
