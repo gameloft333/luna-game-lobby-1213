@@ -249,7 +249,7 @@ check_and_update_nginx_conf() {
     if [ ! -f "$local_conf" ]; then
         error "本地 Nginx 配置文件不存在: $local_conf"
         return 1
-    }
+    fi
     
     # 创建备份目录
     if [ ! -d "$backup_dir" ]; then
