@@ -237,6 +237,70 @@ check_container_logs() {
     return 0
 }
 
+# 检查并更新 Nginx 配置
+check_and_update_nginx_conf() {
+    log "检查 Nginx 配置文件..."
+    local server_conf="/etc/nginx/conf.d/play.conf"
+    local local_conf="./conf.d/play.conf"
+    local backup_dir="/etc/nginx/conf.d/backups"
+    local timestamp=$(date +%Y%m%d_%H%M%S)
+    
+    # 检查本地配置文件是否存在
+    if [ ! -f "$local_conf" ]; then
+        error "本地 Nginx 配置文件不存在: $local_conf"
+        return 1
+    }
+    
+    # 创建备份目录
+    if [ ! -d "$backup_dir" ]; then
+        log "创建备份目录..."
+        sudo mkdir -p "$backup_dir"
+    fi
+    
+    # 如果服务器上存在配置文件
+    if [ -f "$server_conf" ]; then
+        # 比较文件内容
+        if ! sudo diff -q "$server_conf" "$local_conf" >/dev/null 2>&1; then
+            log "检测到配置文件变更，准备更新..."
+            
+            # 创建备份
+            log "备份当前服务器配置..."
+            sudo cp "$server_conf" "${backup_dir}/play.conf.${timestamp}.bak"
+            
+            # 更新配置
+            log "更新 Nginx 配置..."
+            sudo cp "$local_conf" "$server_conf"
+            
+            # 测试新配置
+            log "测试新的 Nginx 配置..."
+            if ! sudo nginx -t; then
+                error "新的 Nginx 配置测试失败，正在回滚..."
+                sudo cp "${backup_dir}/play.conf.${timestamp}.bak" "$server_conf"
+                return 1
+            fi
+            
+            success "Nginx 配置更新成功"
+        else
+            log "Nginx 配置文件无变更，跳过更新"
+        fi
+    else
+        # 如果服务器上不存在配置文件，直接复制
+        log "服务器上不存在配置文件，正在创建..."
+        sudo cp "$local_conf" "$server_conf"
+        
+        # 测试新配置
+        log "测试新的 Nginx 配置..."
+        if ! sudo nginx -t; then
+            error "新的 Nginx 配置测试失败"
+            return 1
+        fi
+        
+        success "Nginx 配置创建成功"
+    fi
+    
+    return 0
+}
+
 # 部署服务
 deploy_services() {
     log "开始部署服务..."
@@ -312,6 +376,12 @@ main() {
     # 检查环境变量
     if ! check_env_file; then
         error "环境变量检查失败"
+        exit 1
+    fi
+    
+    # 检查并更新 Nginx 配置
+    if ! check_and_update_nginx_conf; then
+        error "Nginx 配置更新失败"
         exit 1
     fi
     
