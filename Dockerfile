@@ -16,10 +16,10 @@ COPY . .
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=5173
+ENV VITE_USE_HTTPS=true
 
 # 清理、安装、构建
 RUN npm run clean && \
-    npm install && \
     npm run build
 
 # 安装基本工具
@@ -29,4 +29,4 @@ RUN apk add --no-cache curl
 EXPOSE 5173
 
 # 启动命令
-CMD ["sh", "-c", "npm run preview"]
+CMD ["npm", "run", "preview"]

@@ -449,9 +449,55 @@ test_deployment() {
     return 0
 }
 
+# 清理和重建服务
+clean_and_rebuild() {
+    log "开始清理和重建服务..."
+    
+    # 1. 停止并清理所有容器和网络
+    log "1. 清理所有容器和网络..."
+    if ! docker-compose -f docker-compose.prod.yml down --volumes --remove-orphans; then
+        error "清理容器失败"
+        return 1
+    fi
+    
+    # 2. 清理所有未使用的资源
+    log "2. 清理未使用的 Docker 资源..."
+    if ! docker system prune -af --volumes; then
+        error "清理 Docker 系统资源失败"
+        return 1
+    fi
+    
+    # 3. 重新构建镜像
+    log "3. 重新构建镜像..."
+    if ! docker-compose -f docker-compose.prod.yml build --no-cache; then
+        error "构建镜像失败"
+        return 1
+    fi
+    
+    # 4. 启动服务
+    log "4. 启动服务..."
+    if ! docker-compose -f docker-compose.prod.yml up -d; then
+        error "启动服务失败"
+        return 1
+    fi
+    
+    # 5. 检查服务日志
+    log "5. 检查服务日志..."
+    docker-compose -f docker-compose.prod.yml logs --tail=100
+    
+    success "清理和重建完成"
+    return 0
+}
+
 # 部署服务
 deploy_services() {
     log "开始部署服务..."
+    
+    # 首先清理和重建
+    if ! clean_and_rebuild; then
+        error "清理和重建失败"
+        return 1
+    fi
     
     # 处理环境变量文件格式
     if ! process_env_file; then
@@ -470,26 +516,15 @@ deploy_services() {
         export "$key"="$value"
     done < .env.production
     
-    # 停止现有服务
-    log "停止现有服务..."
-    docker-compose -f docker-compose.prod.yml down --remove-orphans
-    
-    # 清理 Docker 资源
-    log "清理 Docker 资源..."
-    docker system prune -f
-    docker volume prune -f
-    
-    # 构建新服务
-    log "构建服务..."
-    if ! docker-compose -f docker-compose.prod.yml build --no-cache; then
-        error "服务构建失败"
+    # 等待并诊断前端服务
+    if ! wait_and_diagnose_frontend; then
+        error "前端服务启动失败"
         return 1
     fi
     
-    # 启动服务
-    log "启动服务..."
-    if ! docker-compose -f docker-compose.prod.yml up -d; then
-        error "服务启动失败"
+    # 检查并更新 Nginx 配置
+    if ! check_and_update_nginx_conf; then
+        error "Nginx 配置更新失败"
         return 1
     fi
     
