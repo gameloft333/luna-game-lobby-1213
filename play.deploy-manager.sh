@@ -81,10 +81,35 @@ check_env_file() {
         fi
     done
 
-    # 检查是否存在未转义的特殊字符
-    if grep -q '^[^#].*[^\\]"' "$env_file"; then
-        error "环境变量文件中存在未转义的引号，请检查格式"
+    if [ ${#missing_vars[@]} -ne 0 ]; then
+        error "以下必需的环境变量缺失："
+        printf '%s\n' "${missing_vars[@]}"
         return 1
+    fi
+
+    # 处理 Firebase 私钥的特殊情况
+    if grep -q "FIREBASE_PRIVATE_KEY" "$env_file"; then
+        # 创建临时文件
+        local temp_env=$(mktemp)
+        # 复制内容到临时文件
+        cp "$env_file" "$temp_env"
+        
+        # 处理 FIREBASE_PRIVATE_KEY 行
+        sed -i '/FIREBASE_PRIVATE_KEY/d' "$temp_env"
+        
+        # 检查其他行的引号问题
+        if grep -q '^[^#].*[^\\]"' "$temp_env"; then
+            error "环境变量文件中存在未转义的引号，请检查非 FIREBASE_PRIVATE_KEY 的其他变量"
+            rm "$temp_env"
+            return 1
+        fi
+        rm "$temp_env"
+    else
+        # 如果没有 FIREBASE_PRIVATE_KEY，直接检查引号问题
+        if grep -q '^[^#].*[^\\]"' "$env_file"; then
+            error "环境变量文件中存在未转义的引号，请检查格式"
+            return 1
+        fi
     fi
 
     success "环境变量检查完成"
