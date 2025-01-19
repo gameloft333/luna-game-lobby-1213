@@ -61,12 +61,6 @@ check_env_file() {
         return 1
     fi
 
-    # 检查文件格式
-    if grep -q '[^[:print:]]' "$env_file"; then
-        error "环境变量文件包含非打印字符，请检查格式"
-        return 1
-    fi
-
     # 检查必要的环境变量
     local required_vars=(
         "VITE_FIREBASE_API_KEY"
@@ -87,31 +81,34 @@ check_env_file() {
         return 1
     fi
 
-    # 处理 Firebase 私钥的特殊情况
-    if grep -q "FIREBASE_PRIVATE_KEY" "$env_file"; then
-        # 创建临时文件
-        local temp_env=$(mktemp)
-        # 复制内容到临时文件
-        cp "$env_file" "$temp_env"
+    # 处理环境变量文件
+    local temp_env=$(mktemp)
+    cp "$env_file" "$temp_env"
+    
+    # 移除注释行和空行
+    sed -i '/^#/d;/^$/d' "$temp_env"
+    
+    # 移除包含 FIREBASE_PRIVATE_KEY 的行
+    sed -i '/FIREBASE_PRIVATE_KEY/d' "$temp_env"
+    
+    # 检查其余变量的格式
+    while IFS='=' read -r key value; do
+        # 跳过空行
+        [ -z "$key" ] && continue
         
-        # 处理 FIREBASE_PRIVATE_KEY 行
-        sed -i '/FIREBASE_PRIVATE_KEY/d' "$temp_env"
+        # 移除前后的空格
+        key=$(echo "$key" | xargs)
+        value=$(echo "$value" | xargs)
         
-        # 检查其他行的引号问题
-        if grep -q '^[^#].*[^\\]"' "$temp_env"; then
-            error "环境变量文件中存在未转义的引号，请检查非 FIREBASE_PRIVATE_KEY 的其他变量"
+        # 检查键名格式
+        if [[ ! "$key" =~ ^[A-Z_][A-Z0-9_]*$ ]]; then
+            error "环境变量名格式错误: $key"
             rm "$temp_env"
             return 1
         fi
-        rm "$temp_env"
-    else
-        # 如果没有 FIREBASE_PRIVATE_KEY，直接检查引号问题
-        if grep -q '^[^#].*[^\\]"' "$env_file"; then
-            error "环境变量文件中存在未转义的引号，请检查格式"
-            return 1
-        fi
-    fi
-
+    done < "$temp_env"
+    
+    rm "$temp_env"
     success "环境变量检查完成"
     return 0
 }
