@@ -258,14 +258,43 @@ check_and_update_nginx_conf() {
     fi
 
     # 确保 Docker 网络和服务已经启动
-    log "检查 Docker 服务状态..."
-    if ! docker-compose -f docker-compose.prod.yml ps | grep -q "frontend"; then
-        log "前端服务未运行，先启动服务..."
-        docker-compose -f docker-compose.prod.yml up -d frontend
-        sleep 10
+    log "确保 Docker 服务正常运行..."
+    
+    # 1. 先停止所有服务
+    docker-compose -f docker-compose.prod.yml down --remove-orphans
+    
+    # 2. 确保网络存在
+    docker network create app_network 2>/dev/null || true
+    
+    # 3. 启动前端服务
+    log "启动前端服务..."
+    if ! docker-compose -f docker-compose.prod.yml up -d frontend; then
+        error "前端服务启动失败"
+        return 1
     fi
     
-    # 如果服务器上存在配置文件，进行备份
+    # 4. 等待前端服务完全启动
+    log "等待前端服务就绪..."
+    local max_attempts=30
+    local attempt=1
+    while [ $attempt -le $max_attempts ]; do
+        if docker-compose -f docker-compose.prod.yml ps | grep -q "frontend.*Up"; then
+            if curl -s "http://frontend:5173" >/dev/null 2>&1; then
+                success "前端服务已就绪"
+                break
+            fi
+        fi
+        log "等待前端服务启动... (${attempt}/${max_attempts})"
+        sleep 5
+        attempt=$((attempt + 1))
+    done
+    
+    if [ $attempt -gt $max_attempts ]; then
+        error "前端服务启动超时"
+        return 1
+    fi
+    
+    # 备份当前配置
     if [ -f "$server_conf" ]; then
         log "备份当前服务器配置..."
         sudo cp "$server_conf" "${backup_dir}/play.conf.${timestamp}.bak"
@@ -275,7 +304,7 @@ check_and_update_nginx_conf() {
     log "更新 Nginx 配置..."
     sudo cp "$local_conf" "$server_conf"
     
-    # 测试新配置前确保 Docker 网络正常
+    # 测试新配置
     log "测试新的 Nginx 配置..."
     if ! sudo nginx -t; then
         error "新的 Nginx 配置测试失败，正在回滚..."
