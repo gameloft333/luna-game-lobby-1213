@@ -42,6 +42,8 @@ services:
       frontend:
         condition: service_healthy
     restart: unless-stopped
+    deploy:
+      replicas: ${NGINX_REPLICAS:-0}  # 默认不启动 Nginx
 
 networks:
   app_network:
