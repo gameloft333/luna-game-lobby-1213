@@ -561,6 +561,24 @@ debug_deployment() {
     return 0
 }
 
+# 检查并创建 Docker 网络
+check_and_create_network() {
+    local network_name="app_network"
+    
+    # 检查网络是否存在
+    if ! docker network inspect "$network_name" >/dev/null 2>&1; then
+        log "网络 $network_name 不存在，正在创建..."
+        if ! docker network create "$network_name"; then
+            error "创建网络 $network_name 失败"
+            return 1
+        fi
+        success "网络 $network_name 创建成功"
+    else
+        success "网络 $network_name 已存在"
+    fi
+    return 0
+}
+
 # 部署服务
 deploy_services() {
     local debug_mode=0
@@ -647,6 +665,12 @@ main() {
     # 检查权限
     if [ "$EUID" -ne 0 ]; then 
         error "请使用 sudo 运行此脚本"
+        exit 1
+    fi
+    
+    # 检查并创建 Docker 网络
+    if ! check_and_create_network; then
+        error "网络检查或创建失败"
         exit 1
     fi
     
