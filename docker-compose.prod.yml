@@ -32,8 +32,8 @@ services:
     networks:
       - app_network
     ports:
-      - "80:80"
-      - "443:443"
+      - "8080:80"
+      - "8443:443"
     volumes:
       - ./conf.d/play.conf:/etc/nginx/conf.d/play.conf:ro
       - /etc/nginx/ssl/play.saga4v.com/fullchain.pem:/etc/nginx/ssl/fullchain.pem:ro
