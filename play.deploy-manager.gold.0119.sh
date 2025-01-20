@@ -640,8 +640,9 @@ deploy_services() {
 
     # 检查并更新 Nginx 配置（仅在需要时）
     if [ "$deploy_nginx" -eq 1 ]; then
-        if ! check_and_update_nginx_conf; then
-            error "Nginx 配置更新失败"
+        log "检查 Nginx 配置文件..."
+        if ! docker exec luna-game-nginx nginx -t; then
+            error "Nginx 配置测试失败"
             return 1
         fi
     fi
