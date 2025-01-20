@@ -353,6 +353,10 @@ check_and_update_nginx_conf() {
     log "停止系统 Nginx 服务..."
     sudo systemctl stop nginx
     
+    # 停止 Nginx 容器
+    log "停止 Nginx 容器..."
+    docker stop luna-game-nginx
+    
     # 启动 Docker 容器
     log "启动 Docker 容器..."
     if ! docker-compose -f docker-compose.prod.yml up -d; then
@@ -569,7 +573,7 @@ check_and_create_network() {
     if ! docker network inspect "$network_name" >/dev/null 2>&1; then
         log "网络 $network_name 不存在，正在创建..."
         if ! docker network create "$network_name"; then
-            error "创建网络 $network_name 失败"
+            error "创建网络 $network_name 失败，可能是权限问题或网络已存在"
             return 1
         fi
         success "网络 $network_name 创建成功"
