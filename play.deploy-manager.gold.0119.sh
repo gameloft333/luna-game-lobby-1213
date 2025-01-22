@@ -353,6 +353,10 @@ check_and_update_nginx_conf() {
     log "停止系统 Nginx 服务..."
     sudo systemctl stop nginx
     
+    # 停止 Nginx 容器
+    log "停止 Nginx 容器..."
+    docker stop luna-game-nginx
+    
     # 启动 Docker 容器
     log "启动 Docker 容器..."
     if ! docker-compose -f docker-compose.prod.yml up -d; then
@@ -569,7 +573,7 @@ check_and_create_network() {
     if ! docker network inspect "$network_name" >/dev/null 2>&1; then
         log "网络 $network_name 不存在，正在创建..."
         if ! docker network create "$network_name"; then
-            error "创建网络 $network_name 失败"
+            error "创建网络 $network_name 失败，可能是权限问题或网络已存在"
             return 1
         fi
         success "网络 $network_name 创建成功"
@@ -582,15 +586,17 @@ check_and_create_network() {
 # 部署服务
 deploy_services() {
     local debug_mode=0
-    
+    local deploy_nginx=1  # 默认部署 Nginx
+
     # 检查是否有调试参数
     while [[ "$#" -gt 0 ]]; do
         case $1 in
             --debug) debug_mode=1; shift ;;
+            --no-nginx) deploy_nginx=0; shift ;;  # 添加参数以控制 Nginx 部署
             *) shift ;;
         esac
     done
-    
+
     # 如果是调试模式，运行调试函数
     if [ "$debug_mode" -eq 1 ]; then
         log "启动调试模式..."
@@ -600,21 +606,21 @@ deploy_services() {
         fi
         return 0
     fi
-    
+
     log "开始部署服务..."
-    
+
     # 首先清理和重建
     if ! clean_and_rebuild; then
         error "清理和重建失败"
         return 1
     fi
-    
+
     # 处理环境变量文件格式
     if ! process_env_file; then
         error "环境变量文件处理失败"
         return 1
     fi
-    
+
     # 导出环境变量
     log "导出环境变量..."
     while IFS='=' read -r key value; do
@@ -625,35 +631,40 @@ deploy_services() {
         # 导出其他环境变量
         export "$key"="$value"
     done < .env.production
-    
+
     # 等待并诊断前端服务
     if ! wait_and_diagnose_frontend; then
         error "前端服务启动失败"
         return 1
     fi
-    
-    # 检查并更新 Nginx 配置
-    if ! check_and_update_nginx_conf; then
-        error "Nginx 配置更新失败"
-        return 1
+
+    # 检查并更新 Nginx 配置（仅在需要时）
+    if [ "$deploy_nginx" -eq 1 ]; then
+        log "检查 Nginx 配置文件..."
+        if ! docker exec luna-game-nginx nginx -t; then
+            error "Nginx 配置测试失败"
+            return 1
+        fi
     fi
-    
+
     # 管理 SSL 证书
     if ! manage_ssl_certificates; then
         error "SSL 证书管理失败"
         return 1
     fi
-    
+
     # 运行部署测试
     if ! test_deployment; then
         error "部署测试失败"
         return 1
     fi
-    
+
     # 检查各个服务的日志
     check_container_logs "frontend"
-    check_container_logs "nginx"
-    
+    if [ "$deploy_nginx" -eq 1 ]; then
+        check_container_logs "nginx"
+    fi
+
     success "服务部署完成"
     return 0
 }
