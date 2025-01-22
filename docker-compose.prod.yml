@@ -7,9 +7,8 @@ services:
       dockerfile: Dockerfile
     container_name: luna-game-frontend
     networks:
-      app_network:
-        aliases:
-          - frontend
+      networks:
+        saga4v_network
     ports:
       - "5173:5173"
     env_file:
@@ -26,23 +25,24 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  nginx:
-    image: nginx:latest
-    container_name: luna-game-nginx
-    networks:
-      - app_network
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./conf.d/play.conf:/etc/nginx/conf.d/play.conf:ro
-      - /etc/nginx/ssl/play.saga4v.com/fullchain.pem:/etc/nginx/ssl/fullchain.pem:ro
-      - /etc/nginx/ssl/play.saga4v.com/privkey.pem:/etc/nginx/ssl/privkey.pem:ro
-    depends_on:
-      frontend:
-        condition: service_healthy
-    restart: unless-stopped
+  # nginx:
+    # image: nginx:latest
+    # container_name: luna-game-nginx
+    # networks:
+      # - app_network
+    # ports:
+      # - "80:80"
+      # - "443:443"
+    # volumes:
+      # - ./conf.d/play.conf:/etc/nginx/conf.d/play.conf:ro
+      # - /etc/nginx/ssl/play.saga4v.com/fullchain.pem:/etc/nginx/ssl/fullchain.pem:ro
+      # - /etc/nginx/ssl/play.saga4v.com/privkey.pem:/etc/nginx/ssl/privkey.pem:ro
+    # depends_on:
+      # frontend:
+        # condition: service_healthy
+    # restart: unless-stopped
 
 networks:
-  app_network:
-    driver: bridge 
+  saga4v_network: 
+    external: true  # Use the same external network as Nginx. Important: tells Docker this network is created externally.
+    # driver: bridge
