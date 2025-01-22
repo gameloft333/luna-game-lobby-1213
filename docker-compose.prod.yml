@@ -25,7 +25,6 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-<<<<<<< HEAD
   # nginx:
     # image: nginx:latest
     # container_name: luna-game-nginx
@@ -42,26 +41,6 @@ services:
       # frontend:
         # condition: service_healthy
     # restart: unless-stopped
-=======
-  nginx:
-    image: nginx:latest
-    container_name: luna-game-nginx
-    networks:
-      - app_network
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./conf.d/play.conf:/etc/nginx/conf.d/play.conf:ro
-      - /etc/nginx/ssl/play.saga4v.com/fullchain.pem:/etc/nginx/ssl/fullchain.pem:ro
-      - /etc/nginx/ssl/play.saga4v.com/privkey.pem:/etc/nginx/ssl/privkey.pem:ro
-    depends_on:
-      frontend:
-        condition: service_healthy
-    restart: unless-stopped
-    deploy:
-      replicas: ${NGINX_REPLICAS:-0}  # 默认不启动 Nginx
->>>>>>> 2b078f9af79d9000aaf24ac2cf6c68c42587c9f6
 
 networks:
   saga4v_network: 
