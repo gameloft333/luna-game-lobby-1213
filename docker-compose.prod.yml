@@ -7,8 +7,7 @@ services:
       dockerfile: Dockerfile
     container_name: luna-game-frontend
     networks:
-      networks:
-        saga4v_network
+      - saga4v_network
     ports:
       - "5173:5173"
     env_file:
