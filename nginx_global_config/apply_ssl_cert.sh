@@ -14,8 +14,23 @@ warn() { echo -e "${YELLOW}[WARN] $1${NC}"; }
 # 检查域名格式是否有效
 check_domain_format() {
     local domain=$1
-    if ! echo "$domain" | grep -qE '^[a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}$'; then
+    # 域名格式规则：
+    # 1. 只能包含字母、数字、连字符(-)和点(.)
+    # 2. 每个部分必须以字母或数字开头和结尾
+    # 3. 必须包含至少一个点(.)
+    # 4. 顶级域名至少2个字符
+    if ! echo "$domain" | grep -qE '^([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$'; then
         error "无效的域名格式: $domain"
+        log "域名格式要求："
+        log "1. 只能包含字母、数字、连字符(-)和点(.)"
+        log "2. 每个部分必须以字母或数字开头和结尾"
+        log "3. 必须包含至少一个点(.)"
+        log "4. 顶级域名至少2个字符"
+        log "有效的域名示例："
+        log "  - example.com"
+        log "  - sub.example.com"
+        log "  - my-website.com"
+        log "  - kitty.saga4v.com"
         return 1
     fi
     return 0
@@ -103,8 +118,17 @@ main() {
         exit 1
     fi
     
+    # 显示域名格式说明
+    log "域名格式说明："
+    log "1. 只能包含字母、数字、连字符(-)和点(.)"
+    log "2. 每个部分必须以字母或数字开头和结尾"
+    log "3. 必须包含至少一个点(.)"
+    log "4. 顶级域名至少2个字符"
+    log "示例: example.com, www.example.com, my-site.com"
+    echo
+    
     # 获取用户输入
-    read -p "请输入需要申请证书的域名: " domain
+    read -p "请输入需要申请证书的域名（如 example.com）: " domain
     
     # 验证域名格式
     if ! check_domain_format "$domain"; then
