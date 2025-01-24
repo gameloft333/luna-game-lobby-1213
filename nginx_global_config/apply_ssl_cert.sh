@@ -43,29 +43,59 @@ check_install_certbot() {
     if ! command -v certbot &> /dev/null; then
         warn "未检测到 Certbot，准备安装..."
         
-        # 检测系统类型
-        if [ -f /etc/debian_version ]; then
-            log "检测到 Debian/Ubuntu 系统"
-            apt-get update
-            apt-get install -y certbot python3-certbot-nginx
-        elif [ -f /etc/redhat-release ]; then
-            log "检测到 CentOS/RHEL 系统"
-            yum install -y epel-release
-            yum install -y certbot python3-certbot-nginx
+        # 检测系统类型和版本
+        if [ -f /etc/os-release ]; then
+            . /etc/os-release
+            case "$ID" in
+                "debian"|"ubuntu")
+                    log "检测到 Debian/Ubuntu 系统"
+                    apt-get update
+                    apt-get install -y certbot python3-certbot-nginx
+                    ;;
+                "centos"|"rhel"|"fedora"|"rocky"|"almalinux"|"amzn")
+                    log "检测到 RHEL 系列系统: $ID"
+                    if [ "$ID" = "centos" ] && [ "$VERSION_ID" = "7" ]; then
+                        # CentOS 7 特殊处理
+                        yum install -y epel-release
+                        yum install -y certbot python-certbot-nginx
+                    else
+                        # CentOS 8+ 和其他 RHEL 系列
+                        dnf install -y epel-release
+                        dnf install -y certbot python3-certbot-nginx
+                    fi
+                    ;;
+                *)
+                    error "未能识别的系统类型: $ID"
+                    error "支持的系统类型："
+                    error "- Debian/Ubuntu"
+                    error "- CentOS/RHEL"
+                    error "- Rocky Linux"
+                    error "- AlmaLinux"
+                    error "- Amazon Linux"
+                    error "- Fedora"
+                    return 1
+                    ;;
+            esac
         else
-            error "不支持的操作系统"
+            error "无法检测系统类型（/etc/os-release 文件不存在）"
             return 1
         fi
         
-        # 验证安装
+        # 验证安装结果
         if command -v certbot &> /dev/null; then
             log "Certbot 安装成功"
+            # 显示版本信息
+            certbot --version
         else
             error "Certbot 安装失败"
+            error "请尝试手动安装 Certbot:"
+            error "Debian/Ubuntu: apt-get install certbot python3-certbot-nginx"
+            error "CentOS/RHEL: dnf install certbot python3-certbot-nginx"
             return 1
         fi
     else
-        log "Certbot 已安装"
+        log "Certbot 已安装，版本信息："
+        certbot --version
     fi
     
     return 0
