@@ -57,7 +57,7 @@ get_domains() {
     if [ -z "$nginx_conf" ]; then
         error "未找到 nginx 配置文件"
         return 1
-    }
+    fi
     
     log "使用配置文件: $nginx_conf"
     
