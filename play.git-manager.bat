@@ -1,13 +1,13 @@
 @echo off
 rem 设置代码页为 UTF-8
 chcp 65001 >nul
-rem 设置控制台字体为 Consolas 或 新宋体
+rem 设置控制台字体为 Consolas
 reg add "HKEY_CURRENT_USER\Console" /v "FaceName" /t REG_SZ /d "Consolas" /f >nul
 rem 启用延迟变量扩展
 setlocal EnableDelayedExpansion
 
 rem 版本信息
-set VERSION=1.0.9
+set VERSION=1.3.5
 
 rem 颜色代码
 set RED=[91m]
@@ -22,8 +22,12 @@ set "MENU_1=1) 提交到当前分支"
 set "MENU_2=2) 创建新分支"
 set "MENU_3=3) 切换分支"
 set "MENU_4=4) 合并到主分支"
-set "MENU_5=5) 退出"
-set "MENU_CHOICE=请选择操作 (1-5): "
+set "MENU_5=5) 强制推送到远程"
+set "MENU_6=6) 拉取远程最新代码"
+set "MENU_7=7) 退出"
+set "MENU_8=8) 管理 Git 代理设置"
+set "MENU_9=9) 管理远程仓库地址"
+set "MENU_CHOICE=请选择操作 (1-9): "
 
 rem 检查Git
 where git >nul 2>nul || (
@@ -49,9 +53,13 @@ echo %MENU_2%
 echo %MENU_3%
 echo %MENU_4%
 echo %MENU_5%
+echo %MENU_6%
+echo %MENU_7%
+echo %MENU_8%
+echo %MENU_9%
 echo ==========================
 
-choice /c 12345 /n /m "%MENU_CHOICE%"
+choice /c 123456789 /n /m "%MENU_CHOICE%"
 set choice=%errorlevel%
 
 if %choice%==1 (
@@ -70,7 +78,11 @@ if %choice%==1 (
 if %choice%==2 goto :create_branch
 if %choice%==3 goto :switch_branch
 if %choice%==4 goto :merge_main
-if %choice%==5 exit /b 0
+if %choice%==5 goto :force_push
+if %choice%==6 goto :pull_latest
+if %choice%==7 exit /b 0
+if %choice%==8 goto :manage_proxy
+if %choice%==9 goto :manage_remote
 
 echo %RED%无效的选择%NC%
 timeout /t 2 >nul
@@ -215,5 +227,139 @@ if !errorlevel! neq 0 (
     timeout /t 2 >nul
 )
 goto :menu
+
+:force_push
+echo %YELLOW%警告：强制推送将覆盖远程代码，确定要继续吗？%NC%
+choice /c YN /n /m "确认强制推送 (Y/N)? "
+if !errorlevel!==2 goto :menu
+
+git push origin %current_branch% --force
+if !errorlevel! neq 0 (
+    echo %RED%强制推送失败%NC%
+) else (
+    echo %GREEN%强制推送成功%NC%
+)
+pause
+goto :menu
+
+:pull_latest
+echo %YELLOW%正在拉取最新代码...%NC%
+git fetch origin
+git reset --hard origin/%current_branch%
+if !errorlevel! neq 0 (
+    echo %RED%拉取失败%NC%
+) else (
+    echo %GREEN%已更新到最新代码%NC%
+)
+pause
+goto :menu
+
+:manage_proxy
+cls
+echo === Git 代理管理 ===
+echo 1) 查看当前代理设置
+echo 2) 设置代理 (本地代理)
+echo 3) 设置代理 (云服务器代理)
+echo 4) 删除代理设置
+echo 5) 返回主菜单
+echo ==========================
+
+choice /c 12345 /n /m "请选择操作 (1-5): "
+set proxy_choice=%errorlevel%
+
+if %proxy_choice%==2 (
+    echo 选择代理类型:
+    echo 1) HTTP 代理 (http://127.0.0.1:7890)
+    echo 2) SOCKS5 代理 (socks5://127.0.0.1:7890)
+    choice /c 12 /n /m "请选择 (1-2): "
+    if !errorlevel!==1 (
+        git config --global http.proxy http://127.0.0.1:7890
+        git config --global https.proxy http://127.0.0.1:7890
+    ) else (
+        git config --global http.proxy socks5://127.0.0.1:7890
+        git config --global https.proxy socks5://127.0.0.1:7890
+    )
+    echo %GREEN%本地代理设置已更新%NC%
+    timeout /t 2 >nul
+    goto :manage_proxy
+)
+
+if %proxy_choice%==3 (
+    echo 选择代理类型:
+    echo 1) HTTP 代理
+    echo 2) SOCKS5 代理
+    choice /c 12 /n /m "请选择 (1-2): "
+    set /p proxy_ip="请输入代理服务器 IP: "
+    set /p proxy_port="请输入代理端口: "
+    if !errorlevel!==1 (
+        git config --global http.proxy http://!proxy_ip!:!proxy_port!
+        git config --global https.proxy http://!proxy_ip!:!proxy_port!
+    ) else (
+        git config --global http.proxy socks5://!proxy_ip!:!proxy_port!
+        git config --global https.proxy socks5://!proxy_ip!:!proxy_port!
+    )
+    echo %GREEN%云服务器代理设置已更新%NC%
+    timeout /t 2 >nul
+    goto :manage_proxy
+)
+
+if %proxy_choice%==4 (
+    git config --global --unset http.proxy
+    git config --global --unset https.proxy
+    echo %GREEN%代理设置已删除%NC%
+    timeout /t 2 >nul
+    goto :manage_proxy
+)
+
+if %proxy_choice%==5 goto :menu
+
+goto :manage_proxy
+
+:manage_remote
+cls
+echo === Git 远程仓库管理 ===
+echo 1) 查看当前远程地址
+echo 2) 切换到 HTTPS 地址
+echo 3) 切换到备用 HTTPS 地址
+echo 4) 切换到 SSH 地址
+echo 5) 返回主菜单
+echo ==========================
+
+choice /c 12345 /n /m "请选择操作 (1-5): "
+set remote_choice=%errorlevel%
+
+if %remote_choice%==1 (
+    echo.
+    echo 当前远程仓库地址:
+    git remote -v
+    echo.
+    pause
+    goto :manage_remote
+)
+
+if %remote_choice%==2 (
+    git remote set-url origin https://github.com/gameloft333/ai-chat-application-1113-main.git
+    echo %GREEN%已切换到 HTTPS 地址%NC%
+    timeout /t 2 >nul
+    goto :manage_remote
+)
+
+if %remote_choice%==3 (
+    git remote set-url origin https://gitee.com/gameloft333/ai-chat-application-1113-main.git
+    echo %GREEN%已切换到备用 HTTPS 地址%NC%
+    timeout /t 2 >nul
+    goto :manage_remote
+)
+
+if %remote_choice%==4 (
+    git remote set-url origin git@github.com:gameloft333/ai-chat-application-1113-main.git
+    echo %GREEN%已切换到 SSH 地址%NC%
+    timeout /t 2 >nul
+    goto :manage_remote
+)
+
+if %remote_choice%==5 goto :menu
+
+goto :manage_remote
 
 rem ... 其他代码保持不变 ...
