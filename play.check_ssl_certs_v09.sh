@@ -50,7 +50,17 @@ check_install_certbot() {
 
 # 获取配置文件中的所有域名
 get_domains() {
-    local nginx_conf="/path/to/nginx.global.250123.conf"
+    # 查找 nginx_global_config 目录下最新的配置文件
+    local config_dir="/etc/nginx/nginx_global_config"
+    local nginx_conf=$(ls -t "${config_dir}"/nginx.global.*.conf 2>/dev/null | head -n1)
+    
+    if [ -z "$nginx_conf" ]; then
+        error "未找到 nginx 配置文件"
+        return 1
+    }
+    
+    log "使用配置文件: $nginx_conf"
+    
     grep -E "server_name" "$nginx_conf" | grep -v "_" | awk '{
         for(i=2;i<=NF;i++) {
             if($i != ";" && $i != "_") {
