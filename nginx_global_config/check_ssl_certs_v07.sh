@@ -69,7 +69,7 @@ check_cert_status() {
     if [ ! -f "$cert_path" ]; then
         echo "missing"
         return
-    }
+    fi
     
     # 获取证书过期时间
     local expiry_date=$(openssl x509 -enddate -noout -in "$cert_path" | cut -d= -f2)
