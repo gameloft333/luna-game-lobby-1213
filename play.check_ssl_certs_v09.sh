@@ -61,19 +61,26 @@ get_domains() {
     
     log "使用配置文件: $nginx_conf"
     
-    grep -E "server_name" "$nginx_conf" | grep -v "_" | awk '{
-        for(i=2;i<=NF;i++) {
-            if($i != ";" && $i != "_") {
-                gsub(/;/,"",$i)
-                print $i
-            }
-        }
-    }' | sort -u
+    # 改进域名提取逻辑
+    grep -E "^\s*server_name" "$nginx_conf" | 
+    sed -e 's/server_name//g' -e 's/;//g' | 
+    tr -s ' ' '\n' | 
+    grep -v '^$' | 
+    grep -v '_' |
+    grep -E '^[a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}$' |
+    sort -u
 }
 
 # 检查证书状态
 check_cert_status() {
     local domain=$1
+    
+    # 添加域名格式验证
+    if ! echo "$domain" | grep -qE '^[a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}$'; then
+        error "无效的域名格式: $domain"
+        return 1
+    fi
+    
     local cert_path="/etc/letsencrypt/live/$domain/fullchain.pem"
     
     if [ ! -f "$cert_path" ]; then
@@ -125,12 +132,25 @@ apply_cert() {
 main() {
     log "开始检查域名 SSL 证书状态..."
     
+    # 获取并验证域名列表
+    local domains=$(get_domains)
+    if [ -z "$domains" ]; then
+        error "未找到有效的域名配置"
+        return 1
+    fi
+    
+    log "找到以下域名配置:"
+    echo "$domains" | while read -r domain; do
+        log "- $domain"
+    done
+    
     # 存储需要处理的域名
     declare -A domains_to_process
     local total_domains=0
     
     # 检查所有域名的证书状态
-    while read -r domain; do
+    echo "$domains" | while read -r domain; do
+        log "检查域名: $domain"
         local status=$(check_cert_status "$domain")
         case $status in
             "missing")
@@ -147,7 +167,7 @@ main() {
                 log "域名 $domain 的 SSL 证书有效"
                 ;;
         esac
-    done < <(get_domains)
+    done
     
     # 如果没有需要处理的域名，直接退出
     if [ $total_domains -eq 0 ]; then
