@@ -101,26 +101,84 @@ check_install_certbot() {
     return 0
 }
 
+# 检查域名DNS解析和可访问性
+check_domain_accessibility() {
+    local domain=$1
+    log "检查域名 $domain 的可访问性..."
+    
+    # 检查DNS解析
+    if ! host "$domain" &>/dev/null; then
+        error "域名 $domain 无法解析到IP地址"
+        log "请确保："
+        log "1. 域名已经正确配置DNS解析"
+        log "2. DNS解析已经生效（可能需要等待几分钟到几小时）"
+        return 1
+    fi
+    
+    # 检查域名是否解析到当前服务器
+    local domain_ip=$(host "$domain" | grep "has address" | head -1 | awk '{print $NF}')
+    local server_ip=$(curl -s ifconfig.me)
+    
+    if [ "$domain_ip" != "$server_ip" ]; then
+        error "域名 $domain 未指向当前服务器"
+        log "当前情况："
+        log "- 域名解析IP: $domain_ip"
+        log "- 服务器IP: $server_ip"
+        log "请确保域名解析到当前服务器IP"
+        return 1
+    fi
+    
+    # 检查Nginx配置
+    if ! nginx -t &>/dev/null; then
+        error "Nginx 配置检查失败"
+        log "请检查 Nginx 配置是否正确"
+        return 1
+    fi
+    
+    # 检查80端口是否开放
+    if ! curl -s -I "http://$domain" &>/dev/null; then
+        error "无法通过 HTTP 访问域名 $domain"
+        log "请确保："
+        log "1. Nginx 已正确配置并运行"
+        log "2. 80 端口已开放"
+        log "3. 防火墙允许 HTTP 访问"
+        return 1
+    fi
+    
+    log "域名 $domain 检查通过"
+    return 0
+}
+
 # 申请证书
 apply_cert() {
     local domain=$1
     local email=$2
     
+    # 先检查域名可访问性
+    if ! check_domain_accessibility "$domain"; then
+        return 1
+    fi
+    
     log "正在为 $domain 申请 SSL 证书..."
     
-    # 备份现有的nginx配置（如果存在）
+    # 备份现有的nginx配置
     if [ -f "/etc/nginx/conf.d/$domain.conf" ]; then
         local backup_file="/etc/nginx/conf.d/$domain.conf.bak.$(date +%Y%m%d_%H%M%S)"
         log "备份现有配置到: $backup_file"
         cp "/etc/nginx/conf.d/$domain.conf" "$backup_file"
     fi
     
+    # 确保 .well-known 目录可访问
+    mkdir -p /var/www/html/.well-known/acme-challenge
+    chmod -R 755 /var/www/html/.well-known
+    
     # 申请证书
     certbot certonly --nginx \
         --non-interactive \
         --agree-tos \
         --email "$email" \
-        -d "$domain"
+        -d "$domain" \
+        --preferred-challenges http
         
     if [ $? -eq 0 ]; then
         log "✓ $domain 证书申请成功"
@@ -131,12 +189,19 @@ apply_cert() {
         return 0
     else
         error "× $domain 证书申请失败"
+        error "详细错误日志: /var/log/letsencrypt/letsencrypt.log"
         return 1
     fi
 }
 
 # 主函数
 main() {
+    # 首先检查 Certbot
+    if ! check_install_certbot; then
+        error "Certbot 环境检查失败，无法继续"
+        exit 1
+    fi
+    
     clear
     log "=== SSL 证书申请工具 ==="
     log "本工具将帮助您为域名申请 Let's Encrypt SSL 证书"
@@ -180,12 +245,6 @@ main() {
         log "用户取消操作"
         exit 0
     fi
-    
-    # 检查并安装 Certbot
-    check_install_certbot || {
-        error "Certbot 安装失败，无法继续申请证书"
-        exit 1
-    }
     
     # 申请证书
     apply_cert "$domain" "$email"
