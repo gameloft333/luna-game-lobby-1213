@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Star, Users, Heart, Play, Clock } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Game } from '../../types/games';
@@ -12,6 +12,39 @@ interface GameCardProps {
 }
 
 export function GameCard({ game, onClick }: GameCardProps) {
+  const [currentCover, setCurrentCover] = useState<string>('');
+  
+  useEffect(() => {
+    const loadCover = async () => {
+      try {
+        if (typeof game.cover === 'function') {
+          const coverUrl = await game.cover();
+          console.log(`[DEBUG] GameCard - 原始封面URL:`, coverUrl);
+          
+          // 处理URL
+          let finalUrl = coverUrl;
+          if (!coverUrl.startsWith('http')) {
+            // 确保本地路径正确，移除可能的 ?url 后缀
+            finalUrl = coverUrl.replace('?url', '');
+            if (!finalUrl.startsWith('/')) {
+              finalUrl = `/${finalUrl}`;
+            }
+          }
+          
+          console.log(`[DEBUG] GameCard - 处理后的URL:`, finalUrl);
+          setCurrentCover(finalUrl);
+        } else {
+          setCurrentCover(game.cover);
+        }
+      } catch (error) {
+        console.error(`[ERROR] GameCard - 加载封面失败:`, error);
+        setCurrentCover('/assets/images/fallback.jpg');
+      }
+    };
+    
+    loadCover();
+  }, [game]);
+
   return (
     <div
       className={cn(
@@ -24,7 +57,7 @@ export function GameCard({ game, onClick }: GameCardProps) {
       {/* Cover Image Container */}
       <div className="relative aspect-[16/9] overflow-hidden">
         <img
-          src={game.cover}
+          src={currentCover || '/fallback-image.jpg'}
           alt={game.title}
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
         />

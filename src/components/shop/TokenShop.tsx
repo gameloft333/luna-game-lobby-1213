@@ -10,16 +10,6 @@ import { doc, collection, setDoc, updateDoc, serverTimestamp, getDoc } from 'fir
 import { db } from '../../lib/firebase/config';
 import { TOKEN_PACKAGES } from '../../config/tokenPackages';
 
-// 商品配置，后续可以移到配置文件中
-const TOKEN_PACKAGES = [
-  { id: 'token_10', amount: 10, price: 0.99, bonus: 0, tag: '', paymentLink: 'https://buy.stripe.com/aEUdSn4W10Vk7jq4gg' },
-  { id: 'token_50', amount: 50, price: 4.99, bonus: 5, tag: 'Popular', paymentLink: 'https://buy.stripe.com/bIY7tZdsx47w9ry5kl' },
-  { id: 'token_100', amount: 100, price: 9.99, bonus: 15, tag: '', paymentLink: 'https://buy.stripe.com/eVa15B2NTgUidHO5km' },
-  { id: 'token_500', amount: 500, price: 49.99, bonus: 100, tag: 'Best Value', paymentLink: 'https://buy.stripe.com/9AQ01x88davU8nucMP' },
-  { id: 'token_1000', amount: 1000, price: 99.99, bonus: 250, tag: '', paymentLink: 'https://buy.stripe.com/28o9C72NTgUiavC6ou' },
-  { id: 'token_2000', amount: 2000, price: 199.99, bonus: 600, tag: 'Most Tokens', paymentLink: 'https://buy.stripe.com/8wM29Fagl7jI1Z6cMR' }
-];
-
 // 在 TOKEN_PACKAGES 定义后添加辅助函数
 const getStripeSuccessUrl = () => {
   const baseUrl = window.location.origin;
