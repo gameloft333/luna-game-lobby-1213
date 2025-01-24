@@ -51,7 +51,7 @@ check_install_certbot() {
 # 获取配置文件中的所有域名
 get_domains() {
     # 查找 nginx_global_config 目录下最新的配置文件
-    local config_dir="/etc/nginx/nginx_global_config"
+    local config_dir="./nginx_global_config"
     local nginx_conf=$(ls -t "${config_dir}"/nginx.global.*.conf 2>/dev/null | head -n1)
     
     if [ -z "$nginx_conf" ]; then
