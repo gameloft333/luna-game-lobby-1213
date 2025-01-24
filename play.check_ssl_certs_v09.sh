@@ -61,14 +61,23 @@ get_domains() {
     
     log "使用配置文件: $nginx_conf"
     
-    # 改进域名提取逻辑
+    # 改进域名提取逻辑，使用临时文件避免日志混入
+    local temp_domains=$(mktemp)
+    
+    # 提取域名并过滤
     grep -E "^\s*server_name" "$nginx_conf" | 
     sed -e 's/server_name//g' -e 's/;//g' | 
     tr -s ' ' '\n' | 
     grep -v '^$' | 
     grep -v '_' |
-    grep -E '^[a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}$' |
-    sort -u
+    grep -v '\[' |  # 过滤掉包含方括号的行（日志输出）
+    grep -E '^[a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}$' > "$temp_domains"
+    
+    # 读取并显示域名
+    local result=$(cat "$temp_domains" | sort -u)
+    rm -f "$temp_domains"
+    
+    echo "$result"
 }
 
 # 检查证书状态
@@ -141,7 +150,9 @@ main() {
     
     log "找到以下域名配置:"
     echo "$domains" | while read -r domain; do
-        log "- $domain"
+        if [ -n "$domain" ]; then
+            log "- $domain"
+        fi
     done
     
     # 存储需要处理的域名
@@ -150,23 +161,25 @@ main() {
     
     # 检查所有域名的证书状态
     echo "$domains" | while read -r domain; do
-        log "检查域名: $domain"
-        local status=$(check_cert_status "$domain")
-        case $status in
-            "missing")
-                warn "域名 $domain 没有 SSL 证书"
-                domains_to_process[$domain]="missing"
-                total_domains=$((total_domains + 1))
-                ;;
-            "expiring")
-                warn "域名 $domain 的 SSL 证书即将过期"
-                domains_to_process[$domain]="expiring"
-                total_domains=$((total_domains + 1))
-                ;;
-            "valid")
-                log "域名 $domain 的 SSL 证书有效"
-                ;;
-        esac
+        if [ -n "$domain" ]; then
+            log "检查域名: $domain"
+            local status=$(check_cert_status "$domain")
+            case $status in
+                "missing")
+                    warn "域名 $domain 没有 SSL 证书"
+                    domains_to_process[$domain]="missing"
+                    total_domains=$((total_domains + 1))
+                    ;;
+                "expiring")
+                    warn "域名 $domain 的 SSL 证书即将过期"
+                    domains_to_process[$domain]="expiring"
+                    total_domains=$((total_domains + 1))
+                    ;;
+                "valid")
+                    log "域名 $domain 的 SSL 证书有效"
+                    ;;
+            esac
+        fi
     done
     
     # 如果没有需要处理的域名，直接退出
