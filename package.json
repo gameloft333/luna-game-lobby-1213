@@ -1,7 +1,7 @@
 {
   "name": "Luna Game Lobby",
   "private": true,
-  "version": "1.66.97.55996",
+  "version": "1.107.201.63898",
   "type": "module",
   "scripts": {
     "dev": "vite",

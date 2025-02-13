@@ -22,7 +22,25 @@ const FALLBACK_IMAGES = {
     'https://images.unsplash.com/photo-1545389336-cf090694435e',     // 海边漫步
     'https://images.unsplash.com/photo-1519671482749-fd09be7ccebf',  // 幸福时光
     'https://images.unsplash.com/photo-1544642899-f0d6e5f6ed6f',     // 浪漫约会
-  ]
+  ],
+  zen: [
+    'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b',  // 冥想场景
+    'https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5',  // 平静湖面
+    'https://images.unsplash.com/photo-1528715471579-d1bcf0ba5e83',  // 治愈森林
+    'https://images.unsplash.com/photo-1469474968028-56623f02e42e',  // 日落
+  ],
+  mood: [
+    'https://images.unsplash.com/photo-1499209974431-9dddcece7f88',  // 情绪表达
+    'https://images.unsplash.com/photo-1531427186611-ecfd6d936c79',  // 思考
+    'https://images.unsplash.com/photo-1474540412665-1cdae210ae6b',  // 心情变化
+    'https://images.unsplash.com/photo-1517677129300-07b130802f46',  // 情绪光谱
+  ],
+  bible: [
+    'https://images.unsplash.com/photo-1504052434569-70ad5836ab65',  // 圣经
+    'https://images.unsplash.com/photo-1507434965515-61970f2bd7c6',  // 教堂
+    'https://images.unsplash.com/photo-1529070538774-1843cb3265df',  // 祈祷
+    'https://images.unsplash.com/photo-1544450804-9e5f64cb18de',  // 十字架
+  ],
 };
 
 // 获取随机备用图片
@@ -40,6 +58,18 @@ const IMAGE_FOLDERS = {
   kitty: {
     path: `${BASE_IMAGE_URL}/kitty`,
     getFallback: () => getRandomFallback('kitty')  // 使用函数获取随机备用图片
+  },
+  zen: {
+    path: `${BASE_IMAGE_URL}/zen`,
+    getFallback: () => getRandomFallback('zen')  // 使用函数获取随机备用图片
+  },
+  mood: {
+    path: `${BASE_IMAGE_URL}/mood`,
+    getFallback: () => getRandomFallback('mood')  // 使用函数获取随机备用图片
+  },
+  bible: {
+    path: `${BASE_IMAGE_URL}/bible`,
+    getFallback: () => getRandomFallback('bible')  // 使用函数获取随机备用图片
   }
 } as const;
 
@@ -75,7 +105,7 @@ const getRandomImage = async (project: keyof typeof IMAGE_FOLDERS): Promise<stri
 };
 
 // 定义项目类型
-type ProjectType = 'love' | 'kitty';
+type ProjectType = 'love' | 'kitty' | 'zen' | 'mood' | 'bible';
 
 // 定义项目封面配置接口
 interface ProjectCovers {
@@ -101,66 +131,123 @@ export const PROJECT_IMAGES = {
       `${BASE_IMAGE_URL}/kitty/cats-together.jpg`,
     ],
     fallback: FALLBACK_IMAGES.kitty  // 直接引用备用图片配置
+  },
+  zen: {
+    local: [
+      `${BASE_IMAGE_URL}/zen/meditation-1.jpg`,
+      `${BASE_IMAGE_URL}/zen/meditation-2.jpg`,
+      `${BASE_IMAGE_URL}/zen/meditation-3.jpg`,
+    ],
+    fallback: FALLBACK_IMAGES.zen  // 直接引用备用图片配置
+  },
+  mood: {
+    local: [
+      `${BASE_IMAGE_URL}/mood/mood-1.jpg`,
+      `${BASE_IMAGE_URL}/mood/mood-2.jpg`,
+      `${BASE_IMAGE_URL}/mood/mood-3.jpg`,
+    ],
+    fallback: FALLBACK_IMAGES.mood  // 直接引用备用图片配置
+  },
+  bible: {
+    local: [
+      `${BASE_IMAGE_URL}/bible/bible-1.jpg`,
+      `${BASE_IMAGE_URL}/bible/bible-2.jpg`,
+      `${BASE_IMAGE_URL}/bible/bible-3.jpg`,
+    ],
+    fallback: FALLBACK_IMAGES.bible  // 直接引用备用图片配置
   }
+};
+
+// 添加更强的随机性
+const getRandomOrder = (min: number, max: number) => {
+  // 使用当前时间戳增加随机性
+  const timestamp = new Date().getTime();
+  const random = Math.random() * timestamp;
+  return Math.floor(random % (max - min + 1)) + min;
+};
+
+// 获取随机排序后的游戏列表
+export const getRandomizedGames = (): Game[] => {
+  console.log('[DEBUG] 开始随机排序游戏列表，时间戳:', new Date().toISOString());
+  
+  const randomizedGames = GAMES.map(game => ({
+    ...game,
+    randomOrder: getRandomOrder(1, GAMES.length * 100) // 增大随机数范围
+  })).sort((a, b) => {
+    if (a.showInHome !== b.showInHome) {
+      return a.showInHome ? -1 : 1;
+    }
+    return (a.randomOrder || 0) - (b.randomOrder || 0);
+  });
+
+  console.log('[DEBUG] 随机排序结果:', 
+    randomizedGames.map(g => ({
+      id: g.id,
+      title: g.title,
+      randomOrder: g.randomOrder
+    }))
+  );
+
+  return randomizedGames;
 };
 
 export const GAMES: Game[] = [
   {
     id: 1,
-    title: 'Crypto Quest',
+    title: 'games.cryptoQuest.title',  // 使用多语言键值
     category: 'game', 
     cover: 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41',
     ...getRandomGameMetrics(1),  // 这里会自动生成 players 和 wishes
     rating: 4.8,
-    description: 'Embark on an epic journey through the blockchain realm.',
+    description: 'games.cryptoQuest.description',  // 使用多语言键值
     order: 6,
     showInHome: true,
     isPreview: true,
   },
   {
     id: 2,
-    title: 'NFT Legends',
+    title: 'games.nftLegends.title',  // 使用多语言键值
     category: 'game', 
     cover: 'https://images.unsplash.com/photo-1511512578047-dfb367046420',
     ...getRandomGameMetrics(2),  // 这里会自动生成 players 和 wishes
     rating: 4.6,
-    description: 'Collect, trade, and battle with unique NFT characters.',
+    description: 'games.nftLegends.description',  // 使用多语言键值
     order: 3,
     showInHome: true,
     isPreview: true,
   },
   {
     id: 3,
-    title: 'Meta Racer',
+    title: 'games.metaRacer.title',  // 使用多语言键值
     category: 'game', 
     cover: 'https://images.unsplash.com/photo-1552820728-8b83bb6b773f',
     ...getRandomGameMetrics(3),  // 这里会自动生成 players 和 wishes
     rating: 4.7,
-    description: 'High-speed racing in the metaverse.',
+    description: 'games.metaRacer.description',  // 使用多语言键值
     order: 4,
     showInHome: false,
     isPreview: true,
   },
   {
     id: 4,
-    title: 'AI Chess Master',
+    title: 'games.aiChess.title',  // 使用多语言键值
     category: 'game', 
     cover: 'https://images.unsplash.com/photo-1528819622765-d6bcf132f793',
     ...getRandomGameMetrics(4),  // 这里会自动生成 players 和 wishes
     rating: 4.9,
-    description: 'Challenge advanced AI in strategic chess battles.',
+    description: 'games.aiChess.description',  // 使用多语言键值
     order: 5,
     showInHome: true,
     isPreview: true,
   },
   {
     id: 5,
-    title: 'AI Companions',
+    title: 'games.aiCompanions.title',  // 使用多语言键值
     category: 'agi',
     cover: () => getRandomImage('love'),  // 使用函数获取随机图片
     ...getRandomGameMetrics(5),
     rating: 4.9,
-    description: 'Connect with AI companions and build meaningful relationships.',
+    description: 'games.aiCompanions.description',  // 使用多语言键值
     externalLink: {
       primary: 'http://love.saga4v.com/',
       fallbacks: ['http://love.ai666.click']
@@ -170,17 +257,62 @@ export const GAMES: Game[] = [
   },
   {
     id: 6,
-    title: 'Kitty Spin',
+    title: 'games.kittySpin.title',  // 使用多语言键值
     category: 'game',
     cover: () => getRandomImage('kitty'),  // 使用函数获取随机图片
     ...getRandomGameMetrics(6),
     rating: 4.8,
-    description: 'Adorable kitty-themed game, spin the wheel to win rewards!',
+    description: 'games.kittySpin.description',  // 使用多语言键值
     externalLink: {
       primary: 'http://kitty.saga4v.com/',
       fallbacks: []
     },
     order: 2,
+    showInHome: true,
+  },
+  {
+    id: 7,
+    title: 'games.zen.title',  // 使用多语言键值替换硬编码文本
+    category: 'agi',
+    cover: () => getRandomImage('zen'),  // 需要添加zen相关的图片配置
+    ...getRandomGameMetrics(7),
+    rating: 4.9,
+    description: 'games.zen.description',  // 使用多语言键值替换硬编码文本
+    externalLink: {
+      primary: 'https://zen.saga4v.com/',
+      fallbacks: []
+    },
+    order: 7,
+    showInHome: true,
+  },
+  {
+    id: 8,
+    title: 'games.mood.title',  // 使用多语言键值替换硬编码文本
+    category: 'agi',
+    cover: () => getRandomImage('mood'),  // 需要添加mood相关的图片配置
+    ...getRandomGameMetrics(8),
+    rating: 4.8,
+    description: 'games.mood.description',  // 使用多语言键值替换硬编码文本
+    externalLink: {
+      primary: 'https://mood.saga4v.com/',
+      fallbacks: []
+    },
+    order: 8,
+    showInHome: true,
+  },
+  {
+    id: 9,
+    title: 'games.bible.title',  // 使用多语言键值替换硬编码文本
+    category: 'agi',
+    cover: () => getRandomImage('bible'),  // 需要添加bible相关的图片配置
+    ...getRandomGameMetrics(9),
+    rating: 4.9,
+    description: 'games.bible.description',  // 使用多语言键值替换硬编码文本
+    externalLink: {
+      primary: 'https://aibible.saga4v.com/',
+      fallbacks: []
+    },
+    order: 9,
     showInHome: true,
   },
 ];

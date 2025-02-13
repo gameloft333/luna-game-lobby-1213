@@ -76,5 +76,43 @@ export default {
       failed: '购买失败',
       processing: '正在处理支付...'
     }
+  },
+  games: {
+    zen: {
+      title: '颜色呼吸疗愈',
+      description: '通过AI驱动的呼吸引导和冥想音乐，帮助您缓解压力，找到内心的平静'
+    },
+    mood: {
+      title: '情绪跟踪管理',
+      description: '智能情绪追踪助手，记录和分析您的日常情绪变化'
+    },
+    bible: {
+      title: 'AI圣经助手',
+      description: '智能圣经解读助手，提供个性化的灵修指导'
+    },
+    cryptoQuest: {
+      title: '加密探险',
+      description: '踏上区块链世界的史诗冒险之旅'
+    },
+    nftLegends: {
+      title: 'NFT传奇',
+      description: '收集、交易和对战独特的NFT角色'
+    },
+    metaRacer: {
+      title: '元宇宙赛车',
+      description: '体验元宇宙中的高速竞速'
+    },
+    aiChess: {
+      title: 'AI国际象棋大师',
+      description: '在战略对弈中挑战高级AI'
+    },
+    aiCompanions: {
+      title: 'AI伴侣',
+      description: '与AI伴侣建立有意义的情感连接'
+    },
+    kittySpin: {
+      title: '喵喵转盘',
+      description: '可爱的猫咪主题游戏，转动转盘赢取奖励！'
+    }
   }
 }; 

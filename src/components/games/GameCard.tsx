@@ -5,6 +5,7 @@ import { Game } from '../../types/games';
 import { formatNumber } from '../../lib/utils';
 import { GameBadge } from './GameBadge';
 import { GameStats } from './GameStats';
+import { useTranslation } from 'react-i18next';
 
 interface GameCardProps {
   game: Game;
@@ -12,7 +13,14 @@ interface GameCardProps {
 }
 
 export function GameCard({ game, onClick }: GameCardProps) {
+  const { t } = useTranslation();
   const [currentCover, setCurrentCover] = useState<string>('');
+  
+  // 添加调试日志
+  console.log('[DEBUG] GameCard - 标题键值:', game.title);
+  console.log('[DEBUG] GameCard - 翻译后标题:', t(game.title));
+  console.log('[DEBUG] GameCard - 描述键值:', game.description);
+  console.log('[DEBUG] GameCard - 翻译后描述:', t(game.description));
   
   useEffect(() => {
     const loadCover = async () => {
@@ -58,7 +66,7 @@ export function GameCard({ game, onClick }: GameCardProps) {
       <div className="relative aspect-[16/9] overflow-hidden">
         <img
           src={currentCover || '/fallback-image.jpg'}
-          alt={game.title}
+          alt={t(game.title)}
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
         
@@ -91,10 +99,10 @@ export function GameCard({ game, onClick }: GameCardProps) {
       <div className="p-4 space-y-3">
         <div>
           <h3 className="font-semibold text-lg text-white mb-1 line-clamp-1">
-            {game.title}
+            {t(game.title)}
           </h3>
           <p className="text-sm text-gray-400 line-clamp-2">
-            {game.description}
+            {t(game.description)}
           </p>
         </div>
 

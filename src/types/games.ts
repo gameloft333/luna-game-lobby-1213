@@ -16,4 +16,7 @@ export interface Game {
   showInHome: boolean;
   isPreview?: boolean;
   wishes: number;
+  randomOrder?: number;
 }
+
+export type GameCategory = 'game' | 'agi' | 'companions';

@@ -75,5 +75,43 @@ export default {
       failed: 'Purchase failed',
       processing: 'Processing payment...'
     }
+  },
+  games: {
+    zen: {
+      title: 'Color Breathing Therapy',
+      description: 'Find inner peace through AI-driven breathing guidance and meditation music with soothing colors'
+    },
+    mood: {
+      title: 'Mood Tracking Manager',
+      description: 'Smart mood tracking assistant to record and analyze your daily emotional changes'
+    },
+    bible: {
+      title: 'AI Bible Assistant',
+      description: 'Intelligent Bible interpretation assistant providing personalized spiritual guidance'
+    },
+    cryptoQuest: {
+      title: 'Crypto Quest',
+      description: 'Embark on an epic journey through the blockchain realm.'
+    },
+    nftLegends: {
+      title: 'NFT Legends',
+      description: 'Collect, trade, and battle with unique NFT characters.'
+    },
+    metaRacer: {
+      title: 'Meta Racer',
+      description: 'High-speed racing in the metaverse.'
+    },
+    aiChess: {
+      title: 'AI Chess Master',
+      description: 'Challenge advanced AI in strategic chess battles.'
+    },
+    aiCompanions: {
+      title: 'AI Companions',
+      description: 'Connect with AI companions and build meaningful relationships.'
+    },
+    kittySpin: {
+      title: 'Kitty Spin',
+      description: 'Adorable kitty-themed game, spin the wheel to win rewards!'
+    }
   }
 }; 
