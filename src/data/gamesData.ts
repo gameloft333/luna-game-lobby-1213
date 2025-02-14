@@ -28,18 +28,30 @@ const FALLBACK_IMAGES = {
     'https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5',  // 平静湖面
     'https://images.unsplash.com/photo-1528715471579-d1bcf0ba5e83',  // 治愈森林
     'https://images.unsplash.com/photo-1469474968028-56623f02e42e',  // 日落
+    'https://images.unsplash.com/photo-1531427186611-ecfd6d936c79',  // 森林小径
+    'https://images.unsplash.com/photo-1499209974431-9dddcece7f88',  // 冥想花园
+    'https://images.unsplash.com/photo-1474540412665-1cdae210ae6b',  // 和平之地
+    'https://images.unsplash.com/photo-1517677129300-07b130802f46',  // 自然宁静
   ],
   mood: [
     'https://images.unsplash.com/photo-1499209974431-9dddcece7f88',  // 情绪表达
     'https://images.unsplash.com/photo-1531427186611-ecfd6d936c79',  // 思考
     'https://images.unsplash.com/photo-1474540412665-1cdae210ae6b',  // 心情变化
     'https://images.unsplash.com/photo-1517677129300-07b130802f46',  // 情绪光谱
+    'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b',  // 冥想场景
+    'https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5',  // 平静湖面
+    'https://images.unsplash.com/photo-1528715471579-d1bcf0ba5e83',  // 治愈森林
+    'https://images.unsplash.com/photo-1469474968028-56623f02e42e',  // 日落
   ],
   bible: [
     'https://images.unsplash.com/photo-1504052434569-70ad5836ab65',  // 圣经
     'https://images.unsplash.com/photo-1507434965515-61970f2bd7c6',  // 教堂
     'https://images.unsplash.com/photo-1529070538774-1843cb3265df',  // 祈祷
-    'https://images.unsplash.com/photo-1544450804-9e5f64cb18de',  // 十字架
+    'https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5',  // 平静湖面
+    'https://images.unsplash.com/photo-1531427186611-ecfd6d936c79',  // 森林小径
+    'https://images.unsplash.com/photo-1499209974431-9dddcece7f88',  // 冥想花园
+    'https://images.unsplash.com/photo-1474540412665-1cdae210ae6b',  // 和平之地
+    'https://images.unsplash.com/photo-1517677129300-07b130802f46',  // 自然宁静
   ],
 };
 
