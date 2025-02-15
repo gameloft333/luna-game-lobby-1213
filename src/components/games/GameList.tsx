@@ -17,6 +17,8 @@ export default function GameList() {
       randomized.map(g => ({
         id: g.id,
         title: g.title,
+        hasExternalLink: !!g.externalLink,
+        showInHome: g.showInHome,
         randomOrder: g.randomOrder
       }))
     );

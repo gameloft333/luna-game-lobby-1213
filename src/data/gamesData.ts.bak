@@ -186,15 +186,9 @@ export const getRandomizedGames = (): Game[] => {
     ...game,
     randomOrder: getRandomOrder(1, GAMES.length * 100) // 增大随机数范围
   })).sort((a, b) => {
-    // 首先按照是否有外部链接排序
-    if (!!a.externalLink !== !!b.externalLink) {
-      return a.externalLink ? -1 : 1;
-    }
-    // 其次按照是否显示在首页排序
     if (a.showInHome !== b.showInHome) {
       return a.showInHome ? -1 : 1;
     }
-    // 最后按照随机顺序排序
     return (a.randomOrder || 0) - (b.randomOrder || 0);
   });
 
@@ -202,8 +196,6 @@ export const getRandomizedGames = (): Game[] => {
     randomizedGames.map(g => ({
       id: g.id,
       title: g.title,
-      hasExternalLink: !!g.externalLink,
-      showInHome: g.showInHome,
       randomOrder: g.randomOrder
     }))
   );

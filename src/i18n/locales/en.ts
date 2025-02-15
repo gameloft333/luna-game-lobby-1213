@@ -113,5 +113,32 @@ export default {
       title: 'Kitty Spin',
       description: 'Adorable kitty-themed game, spin the wheel to win rewards!'
     }
+  },
+  profile: {
+    menu: {
+      notifications: 'Notifications',
+      privacySecurity: 'Privacy & Security',
+      theme: 'Theme',
+      darkMode: 'Dark mode',
+      lightMode: 'Light mode',
+      helpSupport: 'Help & Support',
+      signOut: 'Sign Out',
+      language: 'Language',
+      english: 'English',
+      chinese: '中文',
+      testMode: 'Test Mode'
+    },
+    wallet: {
+      title: 'Wallet',
+      balance: 'Balance',
+      tokens: '{{amount}} Tokens',
+      send: 'Send',
+      receive: 'Receive',
+      transfer: 'Transfer',
+      deposit: 'Deposit'
+    },
+    settings: {
+      title: 'Settings'
+    }
   }
 }; 

@@ -23,52 +23,22 @@ import { useTranslation } from 'react-i18next';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { TokenShop } from '../components/shop/TokenShop';
 
-// 添加调试日志工具函数
-const logDebug = (message: string, data?: any) => {
-  console.log(`[DEBUG] Profile - ${message}`, data || '');
-};
-
-// 菜单项可见性配置类型
-interface MenuItemConfig {
+// 添加菜单项可见性配置类型
+interface MenuVisibilityConfig {
   id: string;
   envKey: string;
   defaultValue: boolean;
 }
 
-// 菜单项可见性配置
-const menuVisibilityConfig: MenuItemConfig[] = [
+// 定义菜单项可见性配置
+const MENU_ITEMS_CONFIG: MenuVisibilityConfig[] = [
   { id: 'notifications', envKey: 'VITE_MENU_SHOW_NOTIFICATIONS', defaultValue: true },
   { id: 'privacy', envKey: 'VITE_MENU_SHOW_PRIVACY', defaultValue: true },
   { id: 'theme', envKey: 'VITE_MENU_SHOW_THEME', defaultValue: true },
   { id: 'help', envKey: 'VITE_MENU_SHOW_HELP', defaultValue: true },
   { id: 'language', envKey: 'VITE_MENU_SHOW_LANGUAGE', defaultValue: true },
   { id: 'testMode', envKey: 'VITE_MENU_SHOW_TEST_MODE', defaultValue: false },
-] as const;
-
-// 可见性检查函数
-const getMenuItemVisibility = (config: MenuItemConfig): boolean => {
-  const envValue = import.meta.env[config.envKey];
-  const isVisible = envValue === undefined ? config.defaultValue : envValue === 'true';
-  logDebug(`Menu item ${config.id} visibility:`, isVisible);
-  return isVisible;
-};
-
-// 添加隐私政策跳转函数
-const handlePrivacyClick = () => {
-  const baseUrl = import.meta.env.VITE_PRIVACY_POLICY_BASE_URL;
-  const hash = import.meta.env.VITE_PRIVACY_POLICY_HASH;
-  
-  logDebug('Privacy policy config:', { baseUrl, hash });
-  
-  const url = hash ? `${baseUrl}/#${hash}` : baseUrl;
-  logDebug('Opening privacy policy page:', url);
-  
-  if (baseUrl) {
-    window.open(url, '_blank', 'noopener,noreferrer');
-  } else {
-    console.error('[ERROR] Privacy policy URL is not configured');
-  }
-};
+];
 
 export default function Profile() {
   const { t, i18n } = useTranslation();
@@ -79,16 +49,28 @@ export default function Profile() {
   const { profile, loading } = useUserProfile();
   const [isShopOpen, setIsShopOpen] = useState(false);
 
-  // 添加调试日志
-  logDebug('VITE_ENABLE_TRANSFER:', import.meta.env.VITE_ENABLE_TRANSFER);
-  logDebug('Current language:', i18n.language);
-  logDebug('Rendering profile page with wallet and settings sections');
-
   const handleSignOut = async () => {
     const { error } = await signOut();
     if (!error) {
       navigate('/');
     }
+  };
+
+  // 检查用户是否可以访问测试模式
+  const showTestMode = canAccessTestMode(user?.email);
+
+  // 添加调试日志（规则4）
+  console.log('[DEBUG] Profile - VITE_ENABLE_TRANSFER:', import.meta.env.VITE_ENABLE_TRANSFER);
+  console.log('[DEBUG] Profile - Current language:', i18n.language);
+  console.log('[DEBUG] Profile - Rendering profile page with wallet and settings sections');
+  console.log('[DEBUG] Profile - Loading menu items visibility config');
+
+  // 获取菜单项可见性状态
+  const getMenuItemVisibility = (config: MenuVisibilityConfig): boolean => {
+    const envValue = import.meta.env[config.envKey];
+    const isVisible = envValue === undefined ? config.defaultValue : envValue === 'true';
+    console.log(`[DEBUG] Menu item ${config.id} visibility:`, isVisible);
+    return isVisible;
   };
 
   const baseMenuItems = [
@@ -98,15 +80,15 @@ export default function Profile() {
       label: t('profile.menu.notifications'),
       onClick: () => {},
       showDivider: false,
-      visible: getMenuItemVisibility(menuVisibilityConfig[0])
+      visible: getMenuItemVisibility(MENU_ITEMS_CONFIG[0])
     },
     {
       id: 'privacy',
       icon: Shield,
       label: t('profile.menu.privacySecurity'),
-      onClick: handlePrivacyClick,
+      onClick: () => {},
       showDivider: false,
-      visible: getMenuItemVisibility(menuVisibilityConfig[1])
+      visible: getMenuItemVisibility(MENU_ITEMS_CONFIG[1])
     },
     {
       id: 'theme',
@@ -115,7 +97,7 @@ export default function Profile() {
       onClick: toggleTheme,
       value: theme === 'dark' ? t('profile.menu.darkMode') : t('profile.menu.lightMode'),
       showDivider: false,
-      visible: getMenuItemVisibility(menuVisibilityConfig[2])
+      visible: getMenuItemVisibility(MENU_ITEMS_CONFIG[2])
     },
     {
       id: 'help',
@@ -123,7 +105,7 @@ export default function Profile() {
       label: t('profile.menu.helpSupport'),
       onClick: () => {},
       showDivider: false,
-      visible: getMenuItemVisibility(menuVisibilityConfig[3])
+      visible: getMenuItemVisibility(MENU_ITEMS_CONFIG[3])
     },
     {
       id: 'language',
@@ -135,7 +117,7 @@ export default function Profile() {
       },
       value: i18n.language === 'en' ? t('profile.menu.english') : t('profile.menu.chinese'),
       showDivider: true,
-      visible: getMenuItemVisibility(menuVisibilityConfig[4])
+      visible: getMenuItemVisibility(MENU_ITEMS_CONFIG[4])
     },
     {
       id: 'signOut',
@@ -152,20 +134,17 @@ export default function Profile() {
   const menuItems = baseMenuItems.filter(item => item.visible);
 
   // 添加测试模式选项
-  if (canAccessTestMode(user?.email)) {
-    const testModeConfig = menuVisibilityConfig[5];
-    if (getMenuItemVisibility(testModeConfig)) {
-      menuItems.splice(-1, 0, {
-        id: 'testMode',
-        icon: Beaker,
-        label: t('profile.menu.testMode'),
-        onClick: toggleTestMode,
-        isToggle: true,
-        value: testMode,
-        showDivider: false,
-        visible: true
-      });
-    }
+  if (showTestMode && getMenuItemVisibility(MENU_ITEMS_CONFIG[5])) {
+    menuItems.splice(-1, 0, {
+      id: 'testMode',
+      icon: Beaker,
+      label: 'Test Mode',
+      onClick: toggleTestMode,
+      isToggle: true,
+      value: testMode,
+      showDivider: false,
+      visible: true
+    });
   }
 
   return (

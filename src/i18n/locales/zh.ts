@@ -114,5 +114,32 @@ export default {
       title: '喵喵转盘',
       description: '可爱的猫咪主题游戏，转动转盘赢取奖励！'
     }
+  },
+  profile: {
+    menu: {
+      notifications: '通知',
+      privacySecurity: '隐私与安全',
+      theme: '主题',
+      darkMode: '深色模式',
+      lightMode: '浅色模式',
+      helpSupport: '帮助与支持',
+      signOut: '退出登录',
+      language: '语言',
+      english: 'English',
+      chinese: '中文',
+      testMode: '测试模式'
+    },
+    wallet: {
+      title: '钱包',
+      balance: '余额',
+      tokens: '{{amount}} 代币',
+      send: '发送',
+      receive: '接收',
+      transfer: '转账',
+      deposit: '存款'
+    },
+    settings: {
+      title: '设置'
+    }
   }
 }; 
