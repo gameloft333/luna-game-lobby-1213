@@ -283,12 +283,13 @@ export const GAMES: Game[] = [
     ...getRandomGameMetrics(6),
     rating: 4.8,
     description: 'games.kittySpin.description',  // 使用多语言键值
-    externalLink: {
+    /* externalLink: {
       primary: 'http://kitty.saga4v.com/',
       fallbacks: []
-    },
+    }, */
     order: 2,
     showInHome: true,
+    isPreview: true,
   },
   {
     id: 7,
